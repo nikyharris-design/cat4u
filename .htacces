@@ -8,6 +8,8 @@ Options -Indexes
 
 # Blocca accesso diretto alle cartelle interne
 RewriteEngine On
+RewriteBase /cat4u/
+
 RewriteRule ^(config|logs|uploads)/.*$ - [F,L]
 
 # Lascia passare file e cartelle reali (assets, dashboard, admin, ecc.)

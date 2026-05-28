@@ -1,7 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/bootstrap.php';
 
-// Lo slug arriva dall'URL: /public/catalogo.php?s=nome-catalogo
 $slug = trim($_GET['s'] ?? '');
 
 if (empty($slug)) {
@@ -9,7 +8,6 @@ if (empty($slug)) {
     die("Catalogo non trovato.");
 }
 
-// Recupera il catalogo attivo con i dati dell'azienda
 $stmt = $pdo->prepare("
     SELECT c.*, a.nome_azienda
     FROM cataloghi c
@@ -27,14 +25,13 @@ if (!$catalogo) {
     die("Catalogo non trovato o scaduto.");
 }
 
-// Verifica sicurezza URL del PDF con Google Safe Browsing
 $pdf_url = BASE_URL . ltrim($catalogo['pdf_path'], '/');
+
 if (!isUrlSafe($pdf_url)) {
     http_response_code(403);
     die("Contenuto non disponibile.");
 }
 
-// Registra la scansione/visita in analytics
 $device_type = 'desktop';
 $ua = strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
 if (str_contains($ua, 'mobile') || str_contains($ua, 'android') || str_contains($ua, 'iphone')) {
@@ -58,7 +55,6 @@ $stmt->execute([$catalogo['id'], $device_type]);
     <main class="catalogo-viewer">
         <h1><?= htmlspecialchars($catalogo['titolo']) ?></h1>
         <p><?= htmlspecialchars($catalogo['nome_azienda']) ?></p>
-
         <iframe
             src="<?= htmlspecialchars($pdf_url) ?>"
             width="100%"

@@ -1,14 +1,17 @@
-Sicurezza e Credenziali
-.env
+# Sicurezza e Credenziali
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Se usi una cartella per i log, blocca anche quella
+# Log
 /logs/*.log
 /logs/*.php
 
-# Blocca la cartella delle dipendenze di Composer
+# Dipendenze Composer
 vendor/
+
+# Upload generati
+/uploads/pdf/
+/uploads/qr/

@@ -1,5 +1,5 @@
 <?php
-define("BASE_URL", "http://localhost:8080/");
+define("BASE_URL", "http://localhost/cat4u/");
 
 $sessionParams = [
     'lifetime' => 0,
@@ -25,7 +25,7 @@ if (!isset($_SESSION['fingerprint'])) {
     if ($_SESSION['fingerprint'] !== $user_fingerprint) {
         session_unset();
         session_destroy();
-        header("Location: " . BASE_URL . "dashboard/login?error=sessione_non_sicura");
+        header("Location: " . BASE_URL . "dashboard/login.php?error=sessione_non_sicura");
         exit();
     }
 }
@@ -54,7 +54,7 @@ if (isset($_SESSION['autorizzato'])) {
         if ($elapsed_time > $timeout_duration) {
             session_unset();
             session_destroy();
-            header("Location: " . BASE_URL . "dashboard/login?error=timeout");
+            header("Location: " . BASE_URL . "dashboard/login.php?error=timeout");
             exit();
         }
     }

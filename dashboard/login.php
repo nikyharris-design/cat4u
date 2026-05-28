@@ -59,37 +59,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login — Cat4U</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
 </head>
-<body>
-    <div class="login-wrapper">
-        <h1>Cat4U</h1>
-        <h2>Accedi</h2>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+        <h1 class="text-3xl font-bold text-indigo-600 mb-1">Cat4U</h1>
+        <h2 class="text-gray-500 font-normal mb-6">Accedi</h2>
 
         <?php if ($error): ?>
-            <p class="error"><?= htmlspecialchars($error) ?></p>
+            <p class="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+                <?= htmlspecialchars($error) ?>
+            </p>
         <?php endif; ?>
 
         <?php
-        // Messaggi da redirect (timeout, sessione non sicura, ecc.)
         $msg_map = [
             'timeout'             => 'Sessione scaduta per inattività.',
             'sessione_non_sicura' => 'Sessione non valida. Accedi di nuovo.',
         ];
         $error_key = $_GET['error'] ?? '';
         if (isset($msg_map[$error_key])): ?>
-            <p class="error"><?= htmlspecialchars($msg_map[$error_key]) ?></p>
+            <p class="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">
+                <?= htmlspecialchars($msg_map[$error_key]) ?>
+            </p>
         <?php endif; ?>
 
         <form method="POST" action="">
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
 
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required autofocus
-                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+            <input type="email" name="email" required autofocus
+                   value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
 
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+            <input type="password" name="password" required
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-6 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
 
-            <button type="submit">Accedi</button>
+            <button type="submit"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg transition">
+                Accedi
+            </button>
         </form>
     </div>
 </body>
