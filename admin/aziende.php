@@ -3,12 +3,32 @@ require_once __DIR__ . '/../config/bootstrap.php';
 require_role('superadmin');
 require_password_changed();
 
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+
 $error   = '';
 $success = '';
+
+function make_slug_azienda(string $str): string {
+    $str = mb_strtolower(trim($str));
+    $str = strtr($str, ['à'=>'a','è'=>'e','é'=>'e','ì'=>'i','ò'=>'o','ù'=>'u']);
+    $str = preg_replace('/[^a-z0-9]+/', '-', $str);
+    return trim($str, '-');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'elimina') {
     csrf_verify();
     $id = (int)($_POST['id'] ?? 0);
+    // Elimina anche il QR dell'azienda
+    $stmt = $pdo->prepare("SELECT qr_code_path FROM aziende WHERE id = ?");
+    $stmt->execute([$id]);
+    $az = $stmt->fetch();
+    if ($az && $az['qr_code_path']) {
+        @unlink(__DIR__ . '/../' . $az['qr_code_path']);
+    }
     $pdo->prepare("DELETE FROM aziende WHERE id = ?")->execute([$id]);
     $success = "Azienda eliminata.";
 }
@@ -29,8 +49,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     } else {
         try {
             if ($_POST['action'] === 'crea') {
-                $stmt = $pdo->prepare("INSERT INTO aziende (nome_azienda, tipo_azienda, partita_iva, email_contatto) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$nome_azienda, $tipo_azienda, $partita_iva, $email_contatto]);
+                // Genera slug univoco
+                $base_slug = make_slug_azienda($nome_azienda);
+                $slug = $base_slug;
+                $i = 1;
+                while (true) {
+                    $stmt = $pdo->prepare("SELECT id FROM aziende WHERE slug = ?");
+                    $stmt->execute([$slug]);
+                    if (!$stmt->fetch()) break;
+                    $slug = $base_slug . '-' . $i++;
+                }
+
+                // Genera QR code che punta alla libreria dell'azienda
+                $qr_url  = BASE_URL . $slug;
+                $qr_dir  = __DIR__ . '/../uploads/qr/';
+                $qr_name = 'azienda-' . $slug . '.png';
+                $qr_path = 'uploads/qr/' . $qr_name;
+
+                $qrCode = new QrCode(
+                    data: $qr_url,
+                    encoding: new Encoding('UTF-8'),
+                    errorCorrectionLevel: ErrorCorrectionLevel::High,
+                    size: 400,
+                    margin: 20,
+                    foregroundColor: new Color(0, 0, 0),
+                    backgroundColor: new Color(255, 255, 255)
+                );
+                $writer = new PngWriter();
+                $result = $writer->write($qrCode);
+                $result->saveToFile($qr_dir . $qr_name);
+
+                $stmt = $pdo->prepare("INSERT INTO aziende (nome_azienda, tipo_azienda, partita_iva, email_contatto, slug, qr_code_path) VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$nome_azienda, $tipo_azienda, $partita_iva, $email_contatto, $slug, $qr_path]);
                 $success = "Azienda creata.";
             } else {
                 $stmt = $pdo->prepare("UPDATE aziende SET nome_azienda=?, tipo_azienda=?, partita_iva=?, email_contatto=? WHERE id=?");
@@ -135,41 +185,55 @@ if (isset($_GET['modifica'])) {
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
-                    <tr>
-                        <th class="px-4 py-3 text-left">Nome</th>
-                        <th class="px-4 py-3 text-left">Tipo</th>
-                        <th class="px-4 py-3 text-left">P.IVA</th>
-                        <th class="px-4 py-3 text-left">Email</th>
-                        <th class="px-4 py-3 text-left">Azioni</th>
-                    </tr>
-                </thead>
+    <tr>
+        <th class="px-4 py-3 text-left">Nome</th>
+        <th class="px-4 py-3 text-left">Tipo</th>
+        <th class="px-4 py-3 text-left">P.IVA</th>
+        <th class="px-4 py-3 text-left">Email</th>
+        <th class="px-4 py-3 text-left">Libreria</th>
+        <th class="px-4 py-3 text-left">Azioni</th>
+    </tr>
+</thead>
                 <tbody class="divide-y divide-gray-100">
-                    <?php foreach ($aziende as $a): ?>
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 font-medium text-gray-800"><?= htmlspecialchars($a['nome_azienda']) ?></td>
-                        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($a['tipo_azienda']) ?></td>
-                        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($a['partita_iva']) ?></td>
-                        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($a['email_contatto']) ?></td>
-                        <td class="px-4 py-3">
-                            <div class="flex gap-2">
-                                <a href="?modifica=<?= $a['id'] ?>"
-                                   class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-medium transition">
-                                    Modifica
-                                </a>
-                                <form method="POST" onsubmit="return confirm('Eliminare questa azienda?')">
-                                    <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
-                                    <input type="hidden" name="action" value="elimina">
-                                    <input type="hidden" name="id" value="<?= $a['id'] ?>">
-                                    <button type="submit"
-                                            class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-xs font-medium transition">
-                                        Elimina
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
+    <?php foreach ($aziende as $a): ?>
+    <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-gray-800"><?= htmlspecialchars($a['nome_azienda']) ?></td>
+        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($a['tipo_azienda']) ?></td>
+        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($a['partita_iva']) ?></td>
+        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($a['email_contatto']) ?></td>
+        <td class="px-4 py-3">
+            <a href="<?= BASE_URL . htmlspecialchars($a['slug']) ?>" target="_blank"
+               class="text-indigo-600 hover:underline font-mono text-xs">
+                /<?= htmlspecialchars($a['slug']) ?>
+            </a><br>
+            <?php if ($a['qr_code_path']): ?>
+            <a href="<?= BASE_URL . htmlspecialchars($a['qr_code_path']) ?>"
+               download="qr-<?= htmlspecialchars($a['slug']) ?>.png"
+               class="text-xs text-gray-500 hover:text-gray-700 underline">
+                ↓ QR Libreria
+            </a>
+            <?php endif; ?>
+        </td>
+        <td class="px-4 py-3">
+            <div class="flex gap-2">
+                <a href="?modifica=<?= $a['id'] ?>"
+                   class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-medium transition">
+                    Modifica
+                </a>
+                <form method="POST" onsubmit="return confirm('Eliminare questa azienda?')">
+                    <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                    <input type="hidden" name="action" value="elimina">
+                    <input type="hidden" name="id" value="<?= $a['id'] ?>">
+                    <button type="submit"
+                            class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-xs font-medium transition">
+                        Elimina
+                    </button>
+                </form>
+            </div>
+        </td>
+    </tr>
+    <?php endforeach; ?>
+</tbody>
             </table>
         </div>
         <?php endif; ?>

@@ -83,7 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'caric
             if (!move_uploaded_file($_FILES['pdf']['tmp_name'], $pdf_dir . $pdf_name)) {
                 $error = "Errore durante il salvataggio del PDF.";
             } else {
-                $qr_url  = BASE_URL . $slug;
+                // Recupera lo slug dell'azienda
+$stmt_az = $pdo->prepare("SELECT slug FROM aziende WHERE id = ?");
+$stmt_az->execute([$azienda_id]);
+$azienda_slug_qr = $stmt_az->fetchColumn();
+
+$qr_url  = BASE_URL . $azienda_slug_qr . '/' . $slug;
                 $qr_dir  = __DIR__ . '/../uploads/qr/';
                 $qr_name = $slug . '_' . time() . '.png';
                 $qr_path = 'uploads/qr/' . $qr_name;
