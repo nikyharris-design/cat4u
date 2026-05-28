@@ -1,0 +1,18 @@
+Options -Indexes
+
+# Blocca accesso diretto a file sensibili
+<FilesMatch "\.(env|log|sql|json|lock)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Blocca accesso diretto alle cartelle interne
+RewriteEngine On
+RewriteRule ^(config|logs|uploads)/.*$ - [F,L]
+
+# Lascia passare file e cartelle reali (assets, dashboard, admin, ecc.)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Tutto il resto → index.php (front controller)
+RewriteRule ^(.*)$ index.php?_route=$1 [QSA,L]
