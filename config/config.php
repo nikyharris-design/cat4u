@@ -14,7 +14,7 @@ use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 
 // Creiamo il logger
-$log = new Logger('qr_magic');
+$log = new Logger('cat4u');
 
 // Specifichiamo dove salvare i log e il livello minimo (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 $log->pushHandler(new StreamHandler(__DIR__ . '/../logs/app.log', Logger::DEBUG));

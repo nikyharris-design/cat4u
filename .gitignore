@@ -1,4 +1,5 @@
-.env# Sicurezza e Credenziali
+Sicurezza e Credenziali
+.env
 .env
 .env.local
 .env.development.local
