@@ -1,15 +1,43 @@
 <?php
+/**
+ * ==========================================================================
+ * GENERI.PHP — Gestione dei generi (categorie dei cataloghi)
+ * ==========================================================================
+ *
+ * CRUD ridotto (Crea / Elenca / Elimina) dei "generi" con cui si raggruppano
+ * i cataloghi di un'azienda (es. Alimentari, Abbigliamento…).
+ *
+ * Due pattern ricorrenti introdotti qui (li ritroverai in cataloghi.php e
+ * aziende.php):
+ *
+ *  1) SELEZIONE AZIENDA IN BASE AL RUOLO
+ *     - superadmin: sceglie l'azienda da un menu a tendina (parametro ?az=).
+ *     - admin/user: l'azienda è fissa, quella del proprio account.
+ *
+ *  2) SLUG UNIVOCI
+ *     - dal nome si ricava uno "slug" adatto agli URL (minuscolo, senza accenti
+ *       né spazi). Se è già usato, si aggiunge un suffisso numerico.
+ *
+ * Tutte le azioni che modificano dati (POST) sono protette da CSRF e usano
+ * prepared statement.
+ */
+
 require_once __DIR__ . '/../config/bootstrap.php';
+
+// Accesso consentito a tutti e tre i ruoli autenticati.
 require_role('superadmin', 'admin' , 'user');
 require_password_changed();
 
-$user       = current_user();
+$user = current_user();
 
-// Superadmin può selezionare l'azienda
+// --- PATTERN 1: da quale azienda stiamo operando? ---
 if ($user['role'] === 'superadmin') {
+    // Il superadmin sceglie l'azienda. L'id può arrivare da GET (cambio menu) o
+    // da POST (invio di un'azione). Carichiamo anche l'elenco per il menu.
     $azienda_id = (int)($_GET['az'] ?? $_POST['az'] ?? 0);
     $aziende_list = $pdo->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azienda ASC")->fetchAll();
 } else {
+    // Admin e user sono vincolati alla propria azienda: niente scelta.
     $azienda_id = (int)$user['azienda_id'];
     $aziende_list = [];
 }
@@ -17,16 +45,29 @@ if ($user['role'] === 'superadmin') {
 $error   = '';
 $success = '';
 
+/**
+ * Trasforma una stringa in uno "slug" usabile in URL.
+ * Es: "Càffè & Té" → "caffe-te".
+ * Passaggi: minuscolo + trim → sostituzione accenti → ogni gruppo di caratteri
+ * non alfanumerici diventa un trattino → si tolgono i trattini ai bordi.
+ */
 function make_slug(string $str): string {
-    $str = mb_strtolower(trim($str));
+    $str = mb_strtolower(trim($str)); // minuscolo (mb_ = sicuro con UTF-8)
     $str = strtr($str, ['à'=>'a','è'=>'e','é'=>'e','ì'=>'i','ò'=>'o','ù'=>'u']);
-    $str = preg_replace('/[^a-z0-9]+/', '-', $str);
-    return trim($str, '-');
+    $str = preg_replace('/[^a-z0-9]+/', '-', $str); // tutto il resto → "-"
+    return trim($str, '-'); // niente trattini iniziali/finali
 }
 
+// --------------------------------------------------------------------------
+// AZIONE: ELIMINA un genere
+// --------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'elimina') {
     csrf_verify();
     $id = (int)($_POST['id'] ?? 0);
+
+    // Controllo di proprietà: eliminiamo solo se il genere appartiene davvero
+    // all'azienda corrente. Impedisce di cancellare generi di altre aziende
+    // manomettendo l'id nel form.
     $stmt = $pdo->prepare("SELECT id FROM generi WHERE id = ? AND azienda_id = ?");
     $stmt->execute([$id, $azienda_id]);
     if ($stmt->fetch()) {
@@ -37,6 +78,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'elimi
     }
 }
 
+// --------------------------------------------------------------------------
+// AZIONE: CREA un genere
+// --------------------------------------------------------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'crea') {
     csrf_verify();
     $nome_genere = trim($_POST['nome_genere'] ?? '');
@@ -44,25 +88,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'crea'
     if (empty($nome_genere)) {
         $error = "Il nome del genere è obbligatorio.";
     } else {
+        // --- PATTERN 2: generazione slug univoco ---
         $base_slug = make_slug($nome_genere);
         $slug = $base_slug;
         $i = 1;
+        // Cicliamo finché lo slug risulta già presente: in tal caso proviamo
+        // base-slug-1, base-slug-2, ecc. Usciamo appena ne troviamo uno libero.
         while (true) {
             $stmt = $pdo->prepare("SELECT id FROM generi WHERE slug = ?");
             $stmt->execute([$slug]);
-            if (!$stmt->fetch()) break;
-            $slug = $base_slug . '-' . $i++;
+            if (!$stmt->fetch()) break;       // slug libero → esci dal ciclo
+            $slug = $base_slug . '-' . $i++;  // occupato → prova il successivo
         }
         try {
             $stmt = $pdo->prepare("INSERT INTO generi (azienda_id, nome_genere, slug) VALUES (?, ?, ?)");
             $stmt->execute([$azienda_id, $nome_genere, $slug]);
             $success = "Genere creato.";
         } catch (PDOException $e) {
+            // Rete di sicurezza in caso di violazione di vincoli del DB.
             $error = "Errore durante la creazione del genere.";
         }
     }
 }
 
+// Elenco dei generi dell'azienda corrente, da mostrare in tabella.
 $generi = $pdo->prepare("SELECT * FROM generi WHERE azienda_id = ? ORDER BY nome_genere ASC");
 $generi->execute([$azienda_id]);
 $generi = $generi->fetchAll();
@@ -86,12 +135,17 @@ $generi = $generi->fetchAll();
             </a>
         </div>
 
+        <!-- Esiti delle azioni. Qui i messaggi sono testo fisso definito da noi,
+             ma htmlspecialchars resta una buona abitudine. -->
         <?php if ($error): ?>
             <p class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm"><?= htmlspecialchars($error) ?></p>
         <?php endif; ?>
         <?php if ($success): ?>
             <p class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm"><?= htmlspecialchars($success) ?></p>
         <?php endif; ?>
+
+        <!-- Selettore azienda: visibile SOLO al superadmin. onchange invia il
+             form da sé, ricaricando la pagina con l'azienda scelta. -->
         <?php if ($user['role'] === 'superadmin'): ?>
 <div class="bg-white rounded-xl shadow p-4 mb-6">
     <form method="GET" action="" class="flex items-center gap-3">
@@ -100,6 +154,7 @@ $generi = $generi->fetchAll();
                 class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
             <option value="">— Seleziona azienda —</option>
             <?php foreach ($aziende_list as $az): ?>
+                <!-- L'opzione corrispondente all'azienda corrente resta selezionata. -->
                 <option value="<?= $az['id'] ?>" <?= $azienda_id === $az['id'] ? 'selected' : '' ?>>
                     <?= htmlspecialchars($az['nome_azienda']) ?>
                 </option>
@@ -109,6 +164,7 @@ $generi = $generi->fetchAll();
 </div>
 <?php endif; ?>
 
+        <!-- FORM: nuovo genere. -->
         <div class="bg-white rounded-xl shadow p-6 mb-6">
             <h3 class="text-sm font-semibold text-gray-500 uppercase mb-4">Nuovo Genere</h3>
             <form method="POST" action="">
@@ -127,6 +183,7 @@ $generi = $generi->fetchAll();
             </form>
         </div>
 
+        <!-- TABELLA: elenco generi (o messaggio se vuoto). -->
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <?php if (empty($generi)): ?>
                 <p class="text-gray-400 text-sm text-center py-8">Nessun genere creato. Aggiungine uno per iniziare.</p>
@@ -145,6 +202,9 @@ $generi = $generi->fetchAll();
                         <td class="px-4 py-3 font-medium text-gray-800"><?= htmlspecialchars($g['nome_genere']) ?></td>
                         <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-0.5 rounded text-xs"><?= htmlspecialchars($g['slug']) ?></code></td>
                         <td class="px-4 py-3">
+                            <!-- Eliminazione con conferma JavaScript. Il vero
+                                 controllo di sicurezza resta lato server (CSRF +
+                                 verifica di proprietà). -->
                             <form method="POST" style="display:inline"
                                   onsubmit="return confirm('Eliminare questo genere?')">
                                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">

@@ -1,4 +1,29 @@
 <?php
+/**
+ * ==========================================================================
+ * ANALYTICS.PHP — Statistiche di scansione dei cataloghi
+ * ==========================================================================
+ *
+ * Mostra quante volte sono stati aperti i cataloghi (scansioni QR), con
+ * suddivisione per dispositivo (mobile/tablet/desktop) e IP unici.
+ *
+ * Accesso: solo superadmin e admin (gli "user" non vedono le analytics).
+ *
+ * Tre concetti chiave da seguire:
+ *
+ *  1) FILTRI A CASCATA: Azienda → Genere → Catalogo.
+ *     Ogni livello popola le opzioni del successivo. Il superadmin parte dalla
+ *     scelta dell'azienda; l'admin è già "ancorato" alla propria.
+ *
+ *  2) WHERE COSTRUITO DINAMICAMENTE.
+ *     Invece di scrivere tante query diverse, costruiamo un array di condizioni
+ *     e un array di parametri, poi li uniamo. Più filtri attivi = più condizioni.
+ *     I valori restano sempre parametrizzati (?) → niente SQL injection.
+ *
+ *  3) QUERY DI AGGREGAZIONE.
+ *     COUNT, SUM con CASE e GROUP BY per ottenere totali e ripartizioni.
+ */
+
 require_once __DIR__ . '/../config/bootstrap.php';
 require_role('superadmin', 'admin');
 require_password_changed();
@@ -6,16 +31,24 @@ require_password_changed();
 $user          = current_user();
 $is_superadmin = $user['role'] === 'superadmin';
 
-// Filtri
+// --------------------------------------------------------------------------
+// LETTURA DEI FILTRI (dalla query string)
+// --------------------------------------------------------------------------
+// az = azienda, g = genere, c = catalogo. 0 = "nessun filtro a questo livello".
+// Per l'admin, il filtro azienda è forzato alla sua azienda (non può cambiarlo).
 $filtro_azienda  = (int)($_GET['az'] ?? ($is_superadmin ? 0 : $user['azienda_id']));
 $filtro_genere   = (int)($_GET['g'] ?? 0);
 $filtro_catalogo = (int)($_GET['c'] ?? 0);
 
-// Liste per i filtri
+// --------------------------------------------------------------------------
+// LISTE PER I MENU A TENDINA (popolate "a cascata")
+// --------------------------------------------------------------------------
+// Elenco aziende: solo al superadmin serve sceglierla.
 $aziende_list = $is_superadmin
     ? $pdo->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azienda ASC")->fetchAll()
     : [];
 
+// I generi compaiono solo dopo aver scelto un'azienda.
 $generi_list = [];
 if ($filtro_azienda > 0) {
     $stmt = $pdo->prepare("SELECT id, nome_genere FROM generi WHERE azienda_id = ? ORDER BY nome_genere ASC");
@@ -23,6 +56,7 @@ if ($filtro_azienda > 0) {
     $generi_list = $stmt->fetchAll();
 }
 
+// I cataloghi dipendono dal genere (se scelto) o comunque dall'azienda.
 $cataloghi_list = [];
 if ($filtro_genere > 0) {
     $stmt = $pdo->prepare("SELECT id, titolo FROM cataloghi WHERE genere_id = ? AND azienda_id = ? AND is_active = 1 ORDER BY titolo ASC");
@@ -34,10 +68,16 @@ if ($filtro_genere > 0) {
     $cataloghi_list = $stmt->fetchAll();
 }
 
-// Query statistiche base
+// --------------------------------------------------------------------------
+// COSTRUZIONE DINAMICA DEL "WHERE"
+// --------------------------------------------------------------------------
+// $where raccoglie le condizioni SQL (come stringhe con segnaposto ?),
+// $params raccoglie i valori corrispondenti, nello STESSO ordine.
 $where = [];
 $params = [];
 
+// Si applica il filtro PIÙ SPECIFICO disponibile (catalogo > genere > azienda).
+// Gli elseif garantiscono che ne valga uno solo per volta.
 if ($filtro_catalogo > 0) {
     $where[] = "ca.catalogo_id = ?";
     $params[] = $filtro_catalogo;
@@ -48,13 +88,22 @@ if ($filtro_catalogo > 0) {
     $where[] = "c.azienda_id = ?";
     $params[] = $filtro_azienda;
 } elseif (!$is_superadmin) {
+    // Sicurezza: un admin senza filtri NON deve vedere i dati globali.
+    // Lo confiniamo comunque alla sua azienda.
     $where[] = "c.azienda_id = ?";
     $params[] = $user['azienda_id'];
 }
 
+// Trasformiamo l'array di condizioni in una stringa SQL. Se è vuoto (superadmin
+// senza filtri), $where_sql resta vuota → la query considera TUTTO.
 $where_sql = $where ? "WHERE " . implode(" AND ", $where) : "";
 
-// Totale scansioni e IP unici
+// --------------------------------------------------------------------------
+// QUERY 1 — Totali globali (con la ripartizione per dispositivo)
+// --------------------------------------------------------------------------
+// SUM(CASE WHEN ...) è un trucco classico: conta le righe che soddisfano una
+// condizione (1) ignorando le altre (0). Così in una sola query otteniamo i
+// totali per ciascun tipo di dispositivo.
 $stmt = $pdo->prepare("
     SELECT 
         COUNT(*) AS totale,
@@ -66,10 +115,14 @@ $stmt = $pdo->prepare("
     JOIN cataloghi c ON c.id = ca.catalogo_id
     $where_sql
 ");
-$stmt->execute($params);
+$stmt->execute($params); // gli stessi $params, nell'ordine in cui li abbiamo accodati
 $stats = $stmt->fetch();
 
-// Statistiche per catalogo
+// --------------------------------------------------------------------------
+// QUERY 2 — Dettaglio per singolo catalogo
+// --------------------------------------------------------------------------
+// GROUP BY raggruppa le scansioni per catalogo, così ogni riga del risultato
+// è un catalogo con i suoi totali. ORDER BY totale DESC = i più visti in cima.
 $stmt = $pdo->prepare("
     SELECT 
         c.titolo,
@@ -90,7 +143,12 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $per_catalogo = $stmt->fetchAll();
 
-// Andamento per giorno (ultimi 30 giorni)
+// --------------------------------------------------------------------------
+// QUERY 3 — Andamento per giorno (ultimi 30 giorni)
+// --------------------------------------------------------------------------
+// Nota sulla composizione SQL: dato che $where_sql può già contenere "WHERE",
+// scegliamo se aggiungere la condizione sui 30 giorni con "AND" o "WHERE".
+// DATE(...) raggruppa per giorno ignorando l'orario.
 $stmt = $pdo->prepare("
     SELECT 
         DATE(ca.scanned_at) AS giorno,
@@ -121,10 +179,13 @@ $per_giorno = $stmt->fetchAll();
             <h2 class="text-2xl font-bold text-gray-800">Analytics</h2>
         </div>
 
-        <!-- FILTRI -->
+        <!-- ============================ FILTRI ============================ -->
+        <!-- Un unico form GET: ogni <select> ha onchange="this.form.submit()",
+             quindi cambiare un filtro ricarica la pagina con i nuovi parametri. -->
         <div class="bg-white rounded-xl shadow p-4 mb-6">
             <form method="GET" action="" class="flex flex-wrap items-end gap-3">
 
+                <!-- Filtro azienda: solo superadmin. -->
                 <?php if ($is_superadmin): ?>
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Azienda</label>
@@ -140,6 +201,8 @@ $per_giorno = $stmt->fetchAll();
                 </div>
                 <?php endif; ?>
 
+                <!-- Filtro genere: compare solo se ci sono generi da mostrare
+                     (cioè se è stata scelta un'azienda). -->
                 <?php if (!empty($generi_list)): ?>
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Genere</label>
@@ -155,6 +218,7 @@ $per_giorno = $stmt->fetchAll();
                 </div>
                 <?php endif; ?>
 
+                <!-- Filtro catalogo: come sopra, condizionato alla presenza di cataloghi. -->
                 <?php if (!empty($cataloghi_list)): ?>
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Catalogo</label>
@@ -170,6 +234,7 @@ $per_giorno = $stmt->fetchAll();
                 </div>
                 <?php endif; ?>
 
+                <!-- Reset: appare solo se almeno un filtro è attivo. -->
                 <?php if ($filtro_azienda || $filtro_genere || $filtro_catalogo): ?>
                 <a href="<?= BASE_URL ?>dashboard/analytics.php"
                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
@@ -180,7 +245,9 @@ $per_giorno = $stmt->fetchAll();
             </form>
         </div>
 
-        <!-- STATISTICHE GLOBALI -->
+        <!-- ===================== STATISTICHE GLOBALI ===================== -->
+        <!-- I "?? 0" coprono il caso senza dati (la query di aggregazione può
+             restituire NULL se non ci sono righe). -->
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
             <div class="bg-white rounded-xl shadow p-4 text-center">
                 <div class="text-3xl font-bold text-indigo-600"><?= $stats['totale'] ?? 0 ?></div>
@@ -204,7 +271,7 @@ $per_giorno = $stmt->fetchAll();
             </div>
         </div>
 
-        <!-- PER CATALOGO -->
+        <!-- ===================== DETTAGLIO PER CATALOGO ===================== -->
         <div class="bg-white rounded-xl shadow overflow-hidden mb-6">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h3 class="text-sm font-semibold text-gray-500 uppercase">Scansioni per catalogo</h3>
@@ -241,7 +308,7 @@ $per_giorno = $stmt->fetchAll();
             <?php endif; ?>
         </div>
 
-        <!-- ANDAMENTO ULTIMI 30 GIORNI -->
+        <!-- ================== ANDAMENTO ULTIMI 30 GIORNI ================== -->
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100">
                 <h3 class="text-sm font-semibold text-gray-500 uppercase">Andamento ultimi 30 giorni</h3>
@@ -260,6 +327,7 @@ $per_giorno = $stmt->fetchAll();
                 <tbody class="divide-y divide-gray-100">
                     <?php foreach ($per_giorno as $row): ?>
                     <tr class="hover:bg-gray-50">
+                        <!-- strtotime + date riformattano la data in gg/mm/aaaa. -->
                         <td class="px-4 py-3 text-gray-700"><?= date('d/m/Y', strtotime($row['giorno'])) ?></td>
                         <td class="px-4 py-3 text-right font-semibold text-indigo-600"><?= $row['totale'] ?></td>
                         <td class="px-4 py-3 text-right text-blue-600"><?= $row['ip_unici'] ?></td>

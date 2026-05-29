@@ -1,0 +1,57 @@
+# ==========================================================================
+# .htaccess (versione COMPLETA) — Configurazione Apache per Cat4U
+# ==========================================================================
+# Questo file imposta tre cose:
+#   1. Sicurezza di base (no listing, blocco file/cartelle sensibili)
+#   2. Riscrittura degli URL "puliti" verso il front controller index.php
+# Le direttive valgono per la cartella in cui risiede il file e le sottocartelle.
+#
+# NB: in Apache i commenti iniziano con "#". Le righe "Options", "RewriteRule"
+# ecc. sono direttive del server / del modulo mod_rewrite.
+
+# Disattiva l'elenco automatico dei file quando in una cartella manca un index.
+# Senza questo, visitando es. /uploads/ il browser mostrerebbe TUTTI i file:
+# qui lo impediamo.
+Options -Indexes
+
+# --------------------------------------------------------------------------
+# Blocco accesso diretto ai file sensibili (per estensione)
+# --------------------------------------------------------------------------
+# FilesMatch applica le regole ai file il cui nome combacia con l'espressione
+# regolare: qui .env, .log, .sql, .json, .lock. "Deny from all" nega a chiunque
+# di scaricarli via web (restano leggibili dal codice PHP lato server).
+<FilesMatch "\.(env|log|sql|json|lock)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# --------------------------------------------------------------------------
+# Riscrittura URL (mod_rewrite)
+# --------------------------------------------------------------------------
+# Abilita il motore di riscrittura.
+RewriteEngine On
+
+# RewriteBase: il percorso "radice" rispetto a cui valgono le regole. Va
+# allineato alla sottocartella in cui gira l'app (qui /cat4u/). Se sposti il
+# progetto, questa riga va aggiornata.
+RewriteBase /cat4u/
+
+# Blocca l'accesso diretto via web alle cartelle interne config/, logs/,
+# uploads/. [F] = Forbidden (403), [L] = ultima regola se combacia.
+# (Questa è una difesa importante: impedisce, ad esempio, di leggere
+# config/config.php o i log direttamente dal browser.)
+RewriteRule ^(config|logs|uploads)/.*$ - [F,L]
+
+# Le due RewriteCond seguenti dicono: applica la regola SOTTOSTANTE solo se il
+# percorso richiesto NON corrisponde a un file reale (!-f) NÉ a una cartella
+# reale (!-d). Così asset esistenti (css, immagini…) vengono serviti
+# direttamente, senza passare dal front controller.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Tutto il resto (URL "puliti" che non puntano a file reali) viene inoltrato a
+# index.php, passando il percorso richiesto nel parametro _route.
+#   /cat4u/acme/volantino  →  index.php?_route=acme/volantino
+# [QSA] = mantiene anche eventuali parametri già presenti nella query string.
+# [L]   = ultima regola.
+RewriteRule ^(.*)$ index.php?_route=$1 [QSA,L]
