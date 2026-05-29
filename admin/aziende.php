@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
                 }
 
                 // Genera QR code che punta alla libreria dell'azienda
-                $qr_url  = BASE_URL . $slug;
+                $qr_url  = BASE_URL . 'public/libreria.php?a=' . $slug;
                 $qr_dir  = __DIR__ . '/../uploads/qr/';
                 $qr_name = 'azienda-' . $slug . '.png';
                 $qr_path = 'uploads/qr/' . $qr_name;

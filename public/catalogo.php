@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/../config/bootstrap.php';
 
-$azienda_slug  = trim($_GET['azienda'] ?? '');
-$catalogo_slug = trim($_GET['catalogo'] ?? '');
+$azienda_slug  = trim($_GET['a'] ?? '');
+$catalogo_slug = trim($_GET['c'] ?? '');
 
 if (empty($azienda_slug) || empty($catalogo_slug)) {
     http_response_code(404);
@@ -73,7 +73,7 @@ $stmt->execute([$catalogo['id'], $device_type]);
                class="font-bold text-lg hover:text-indigo-200 transition">
                 <?= htmlspecialchars($catalogo['nome_azienda']) ?>
             </a>
-            <a href="<?= BASE_URL . htmlspecialchars($azienda['slug']) ?>"
+            <a href="<?= BASE_URL ?>public/libreria.php?a=<?= htmlspecialchars($azienda['slug']) ?>"
                class="text-indigo-200 hover:text-white text-sm transition">
                 ← Tutti i cataloghi
             </a>

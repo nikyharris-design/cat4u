@@ -10,7 +10,15 @@ use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
 
 $user       = current_user();
-$azienda_id = (int)$user['azienda_id'];
+
+// Superadmin può selezionare l'azienda
+if ($user['role'] === 'superadmin') {
+    $azienda_id = (int)($_GET['az'] ?? $_POST['az'] ?? 0);
+    $aziende_list = $pdo->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azienda ASC")->fetchAll();
+} else {
+    $azienda_id = (int)$user['azienda_id'];
+    $aziende_list = [];
+}
 
 $error   = '';
 $success = '';
@@ -88,7 +96,7 @@ $stmt_az = $pdo->prepare("SELECT slug FROM aziende WHERE id = ?");
 $stmt_az->execute([$azienda_id]);
 $azienda_slug_qr = $stmt_az->fetchColumn();
 
-$qr_url  = BASE_URL . $azienda_slug_qr . '/' . $slug;
+$qr_url  = BASE_URL . 'public/catalogo.php?a=' . $azienda_slug_qr . '&c=' . $slug;
                 $qr_dir  = __DIR__ . '/../uploads/qr/';
                 $qr_name = $slug . '_' . time() . '.png';
                 $qr_path = 'uploads/qr/' . $qr_name;
@@ -118,7 +126,7 @@ $qr_url  = BASE_URL . $azienda_slug_qr . '/' . $slug;
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ");
                     $stmt->execute([$azienda_id, $genere_id, $titolo, $pdf_path, $slug, $qr_path, $data_scadenza]);
-                    $success = "Catalogo pubblicato. URL: <strong>" . BASE_URL . htmlspecialchars($slug) . "</strong>";
+                    $success = "Catalogo pubblicato. URL: <strong>" . BASE_URL . "public/catalogo.php?a=" . htmlspecialchars($azienda_slug_qr) . "&c=" . htmlspecialchars($slug) . "</strong>";
                 }
             }
         }
@@ -157,7 +165,22 @@ $cataloghi = $cataloghi->fetchAll();
                 Gestione Generi
             </a>
         </div>
-
+<?php if ($user['role'] === 'superadmin'): ?>
+<div class="bg-white rounded-xl shadow p-4 mb-6">
+    <form method="GET" action="" class="flex items-center gap-3">
+        <label class="text-sm font-semibold text-gray-700">Azienda:</label>
+        <select name="az" onchange="this.form.submit()"
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            <option value="">— Seleziona azienda —</option>
+            <?php foreach ($aziende_list as $az): ?>
+                <option value="<?= $az['id'] ?>" <?= $azienda_id === $az['id'] ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($az['nome_azienda']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </form>
+</div>
+<?php endif; ?>
         <?php if ($error): ?>
             <p class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm"><?= $error ?></p>
         <?php endif; ?>
