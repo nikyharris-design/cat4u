@@ -13,20 +13,28 @@ if (!isset($user)) {
                class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
                 Cataloghi
             </a>
+            <?php if (in_array($user['role'], ['superadmin', 'admin'])): ?>
+<a href="<?= BASE_URL ?>dashboard/analytics.php"
+   class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
+    Analytics
+</a>
+<?php endif; ?>
             <a href="<?= BASE_URL ?>dashboard/generi.php"
                class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
                 Generi
             </a>
             <?php if ($user['role'] === 'superadmin'): ?>
-            <a href="<?= BASE_URL ?>admin/aziende.php"
-               class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
-                Aziende
-            </a>
-            <a href="<?= BASE_URL ?>admin/utenti.php"
-               class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
-                Utenti
-            </a>
-            <?php endif; ?>
+<a href="<?= BASE_URL ?>admin/aziende.php"
+   class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
+    Aziende
+</a>
+<?php endif; ?>
+<?php if (in_array($user['role'], ['superadmin', 'admin'])): ?>
+<a href="<?= BASE_URL ?>admin/utenti.php"
+   class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
+    Utenti
+</a>
+<?php endif; ?>
         </nav>
 
         <div class="flex items-center gap-3 text-sm">

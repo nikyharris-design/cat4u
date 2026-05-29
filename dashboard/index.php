@@ -66,6 +66,12 @@ if ($azienda_id) {
                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
                     Gestione Generi
                 </a>
+                <?php if (in_array($user['role'], ['superadmin', 'admin'])): ?>
+            <a href="<?= BASE_URL ?>dashboard/analytics.php"
+                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
+                        Analytics
+                    </a>
+                    <?php endif; ?>
                 <?php if ($user['role'] === 'superadmin'): ?>
                 <a href="<?= BASE_URL ?>admin/aziende.php"
                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">

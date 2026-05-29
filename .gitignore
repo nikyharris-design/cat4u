@@ -15,3 +15,5 @@ vendor/
 # Upload generati
 /uploads/pdf/
 /uploads/qr/
+/uploads/.htaccess
+/node_modules/

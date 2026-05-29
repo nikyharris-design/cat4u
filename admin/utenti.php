@@ -1,7 +1,10 @@
 <?php
 require_once __DIR__ . '/../config/bootstrap.php';
-require_role('superadmin');
+require_role('superadmin', 'admin');
 require_password_changed();
+
+$user       = current_user();
+$is_superadmin = $user['role'] === 'superadmin';
 
 $error   = '';
 $success = '';
@@ -9,11 +12,22 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'elimina') {
     csrf_verify();
     $id = (int)($_POST['id'] ?? 0);
+
     if ($id === (int)$_SESSION['user_id']) {
         $error = "Non puoi eliminare il tuo account.";
     } else {
-        $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$id]);
-        $success = "Utente eliminato.";
+        // Verifica che l'utente da eliminare appartenga alla stessa azienda (per admin)
+        if (!$is_superadmin) {
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ? AND azienda_id = ?");
+            $stmt->execute([$id, $user['azienda_id']]);
+            if (!$stmt->fetch()) {
+                $error = "Operazione non consentita.";
+            }
+        }
+        if (empty($error)) {
+            $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$id]);
+            $success = "Utente eliminato.";
+        }
     }
 }
 
@@ -22,8 +36,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'crea'
 
     $name       = trim($_POST['name'] ?? '');
     $email      = trim($_POST['email'] ?? '');
-    $role       = $_POST['role'] ?? 'admin';
-    $azienda_id = $_POST['azienda_id'] === '' ? null : (int)$_POST['azienda_id'];
+    $role       = $_POST['role'] ?? 'user';
+    
+    // Admin può creare solo user della sua azienda
+    if ($is_superadmin) {
+        $azienda_id = $_POST['azienda_id'] === '' ? null : (int)$_POST['azienda_id'];
+    } else {
+        $azienda_id = (int)$user['azienda_id'];
+        $role = 'user'; // Admin può creare solo user
+    }
 
     if (empty($name) || empty($email)) {
         $error = "Nome ed email sono obbligatori.";
@@ -49,15 +70,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'crea'
     }
 }
 
-$utenti = $pdo->query("
-    SELECT u.*, a.nome_azienda
-    FROM users u
-    LEFT JOIN aziende a ON a.id = u.azienda_id
-    ORDER BY u.role, u.name ASC
-")->fetchAll();
+// Superadmin vede tutti, admin vede solo utenti della sua azienda
+if ($is_superadmin) {
+    $utenti = $pdo->query("
+        SELECT u.*, a.nome_azienda
+        FROM users u
+        LEFT JOIN aziende a ON a.id = u.azienda_id
+        ORDER BY u.role, u.name ASC
+    ")->fetchAll();
+} else {
+    $stmt = $pdo->prepare("
+        SELECT u.*, a.nome_azienda
+        FROM users u
+        LEFT JOIN aziende a ON a.id = u.azienda_id
+        WHERE u.azienda_id = ?
+        ORDER BY u.role, u.name ASC
+    ");
+    $stmt->execute([(int)$user['azienda_id']]);
+    $utenti = $stmt->fetchAll();
+}
 
-$aziende = $pdo->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azienda ASC")->fetchAll();
-?>
+$aziende = $is_superadmin
+    ? $pdo->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azienda ASC")->fetchAll()
+    : [];
+    ?>
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -102,25 +138,34 @@ $aziende = $pdo->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azien
                                value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
                     </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Ruolo</label>
-                        <select name="role" id="role-select" onchange="toggleAzienda(this.value)"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                            <option value="admin">Admin</option>
-                            <option value="user">User</option>
-                            <option value="superadmin">Superadmin</option>
-                        </select>
-                    </div>
-                    <div id="azienda-field">
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Azienda</label>
-                        <select name="azienda_id"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                            <option value="">— Seleziona —</option>
-                            <?php foreach ($aziende as $az): ?>
-                                <option value="<?= $az['id'] ?>"><?= htmlspecialchars($az['nome_azienda']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <?php if ($is_superadmin): ?>
+<div>
+    <label class="block text-sm font-semibold text-gray-700 mb-1">Ruolo</label>
+    <select name="role" id="role-select" onchange="toggleAzienda(this.value)"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <option value="admin">Admin</option>
+        <option value="user">User</option>
+        <option value="superadmin">Superadmin</option>
+    </select>
+</div>
+<div id="azienda-field">
+    <label class="block text-sm font-semibold text-gray-700 mb-1">Azienda</label>
+    <select name="azienda_id"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <option value="">— Seleziona —</option>
+        <?php foreach ($aziende as $az): ?>
+            <option value="<?= $az['id'] ?>"><?= htmlspecialchars($az['nome_azienda']) ?></option>
+        <?php endforeach; ?>
+    </select>
+</div>
+<?php else: ?>
+<div>
+    <label class="block text-sm font-semibold text-gray-700 mb-1">Ruolo</label>
+    <input type="text" value="User" disabled
+           class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-400">
+    <input type="hidden" name="role" value="user">
+</div>
+<?php endif; ?>
                 </div>
                 <div class="mt-4">
                     <button type="submit"

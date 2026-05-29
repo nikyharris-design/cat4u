@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/bootstrap.php';
-require_role('superadmin', 'admin');
+require_role('superadmin', 'admin' , 'user');
 require_password_changed();
 
 use Endroid\QrCode\QrCode;
@@ -133,19 +133,25 @@ $qr_url  = BASE_URL . 'public/catalogo.php?a=' . $azienda_slug_qr . '&c=' . $slu
     }
 }
 
-$generi = $pdo->prepare("SELECT * FROM generi WHERE azienda_id = ? ORDER BY nome_genere");
-$generi->execute([$azienda_id]);
-$generi = $generi->fetchAll();
+if ($azienda_id > 0) {
+    $generi = $pdo->prepare("SELECT * FROM generi WHERE azienda_id = ? ORDER BY nome_genere");
+    $generi->execute([$azienda_id]);
+    $generi = $generi->fetchAll();
 
-$cataloghi = $pdo->prepare("
-    SELECT c.*, g.nome_genere
-    FROM cataloghi c
-    JOIN generi g ON g.id = c.genere_id
-    WHERE c.azienda_id = ?
-    ORDER BY c.created_at DESC
-");
-$cataloghi->execute([$azienda_id]);
-$cataloghi = $cataloghi->fetchAll();
+    $cataloghi = $pdo->prepare("
+        SELECT c.*, g.nome_genere, a.slug AS azienda_slug
+        FROM cataloghi c
+        JOIN generi g ON g.id = c.genere_id
+        JOIN aziende a ON a.id = c.azienda_id
+        WHERE c.azienda_id = ?
+        ORDER BY c.created_at DESC
+    ");
+    $cataloghi->execute([$azienda_id]);
+    $cataloghi = $cataloghi->fetchAll();
+} else {
+    $generi   = [];
+    $cataloghi = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -198,6 +204,9 @@ $cataloghi = $cataloghi->fetchAll();
             <form method="POST" action="" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                 <input type="hidden" name="action" value="carica">
+                <?php if ($user['role'] === 'superadmin'): ?>
+<input type="hidden" name="az" value="<?= $azienda_id ?>">
+<?php endif; ?>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Titolo</label>
@@ -273,10 +282,10 @@ $cataloghi = $cataloghi->fetchAll();
                             <?php endif; ?>
                         </td>
                         <td class="px-4 py-3">
-                            <a href="<?= BASE_URL . htmlspecialchars($c['slug']) ?>" target="_blank"
-                               class="text-indigo-600 hover:underline font-mono text-xs">
+                            <a href="<?= BASE_URL ?>public/catalogo.php?a=<?= htmlspecialchars($c['azienda_slug'] ?? '') ?>&c=<?= htmlspecialchars($c['slug']) ?>" target="_blank"
+                            class="text-indigo-600 hover:underline font-mono text-xs">
                                 /<?= htmlspecialchars($c['slug']) ?>
-                            </a><br>
+                                </a><br>
                             <a href="<?= BASE_URL . htmlspecialchars($c['qr_code_path']) ?>"
                                download="qr-<?= htmlspecialchars($c['slug']) ?>.png"
                                class="text-xs text-gray-500 hover:text-gray-700 underline">
@@ -289,6 +298,9 @@ $cataloghi = $cataloghi->fetchAll();
                                     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                     <input type="hidden" name="action" value="<?= $c['is_active'] ? 'disattiva' : 'attiva' ?>">
                                     <input type="hidden" name="id" value="<?= $c['id'] ?>">
+                                    <?php if ($user['role'] === 'superadmin'): ?>
+<input type="hidden" name="az" value="<?= $azienda_id ?>">
+<?php endif; ?>
                                     <button type="submit"
                                             class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-medium transition">
                                         <?= $c['is_active'] ? 'Disattiva' : 'Attiva' ?>
@@ -298,6 +310,9 @@ $cataloghi = $cataloghi->fetchAll();
                                     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                     <input type="hidden" name="action" value="elimina">
                                     <input type="hidden" name="id" value="<?= $c['id'] ?>">
+                                    <?php if ($user['role'] === 'superadmin'): ?>
+<input type="hidden" name="az" value="<?= $azienda_id ?>">
+<?php endif; ?>
                                     <button type="submit"
                                             class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-xs font-medium transition">
                                         Elimina

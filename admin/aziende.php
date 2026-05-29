@@ -202,7 +202,7 @@ if (isset($_GET['modifica'])) {
         <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($a['partita_iva']) ?></td>
         <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($a['email_contatto']) ?></td>
         <td class="px-4 py-3">
-            <a href="<?= BASE_URL . htmlspecialchars($a['slug']) ?>" target="_blank"
+            <a href="<?= BASE_URL ?>public/libreria.php?a=<?= htmlspecialchars($a['slug']) ?>" target="_blank"
                class="text-indigo-600 hover:underline font-mono text-xs">
                 /<?= htmlspecialchars($a['slug']) ?>
             </a><br>

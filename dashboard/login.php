@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Forza cambio password se richiesto
             if ($user['must_change_password']) {
-                header("Location: " . BASE_URL . "dashboard/password");
+                header("Location: " . BASE_URL . "dashboard/change-password.php");
             } else {
                 header("Location: " . BASE_URL . "dashboard");
             }

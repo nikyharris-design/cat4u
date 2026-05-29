@@ -54,8 +54,9 @@ if (str_contains($ua, 'mobile') || str_contains($ua, 'android') || str_contains(
     $device_type = 'tablet';
 }
 
-$stmt = $pdo->prepare("INSERT INTO catalogo_analytics (catalogo_id, device_type) VALUES (?, ?)");
-$stmt->execute([$catalogo['id'], $device_type]);
+$ip_hash = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+$stmt = $pdo->prepare("INSERT INTO catalogo_analytics (catalogo_id, device_type, ip_hash) VALUES (?, ?, ?)");
+$stmt->execute([$catalogo['id'], $device_type, $ip_hash]);
 ?>
 <!DOCTYPE html>
 <html lang="it">
