@@ -1,57 +1,54 @@
 # ==========================================================================
-# .htaccess (versione COMPLETA) — Configurazione Apache per Cat4U
+# .htaccess (RADICE) — Configurazione Apache per Cat4U  [VERSIONE CORRETTA]
 # ==========================================================================
-# Questo file imposta tre cose:
-#   1. Sicurezza di base (no listing, blocco file/cartelle sensibili)
-#   2. Riscrittura degli URL "puliti" verso il front controller index.php
-# Le direttive valgono per la cartella in cui risiede il file e le sottocartelle.
+# Va posizionato nella radice del progetto e DEVE chiamarsi esattamente
+# ".htaccess" (con due "t": è l'errore di battitura da correggere).
 #
-# NB: in Apache i commenti iniziano con "#". Le righe "Options", "RewriteRule"
-# ecc. sono direttive del server / del modulo mod_rewrite.
+# Rispetto alla vecchia versione di backup, qui:
+#   - config/ e logs/ restano bloccati (nessuno deve leggerli dal web)
+#   - uploads/ NON è più bloccato in blocco: i PDF e i QR devono essere
+#     scaricabili dal pubblico. La protezione di uploads/ è demandata a un
+#     .htaccess dedicato dentro quella cartella (impedisce l'esecuzione di PHP).
+#   - resta la riscrittura verso il front controller per gli URL puliti.
 
-# Disattiva l'elenco automatico dei file quando in una cartella manca un index.
-# Senza questo, visitando es. /uploads/ il browser mostrerebbe TUTTI i file:
-# qui lo impediamo.
+# Disattiva il listing automatico delle cartelle prive di index.
 Options -Indexes
 
 # --------------------------------------------------------------------------
-# Blocco accesso diretto ai file sensibili (per estensione)
+# Blocco accesso diretto a file sensibili (per estensione)
 # --------------------------------------------------------------------------
-# FilesMatch applica le regole ai file il cui nome combacia con l'espressione
-# regolare: qui .env, .log, .sql, .json, .lock. "Deny from all" nega a chiunque
-# di scaricarli via web (restano leggibili dal codice PHP lato server).
-<FilesMatch "\.(env|log|sql|json|lock)$">
-    Order allow,deny
-    Deny from all
+# Nega il download via web di .env, log, dump SQL, lock e file .json di
+# configurazione (composer.json, package.json…). Restano leggibili dal PHP.
+#
+# Sintassi Apache 2.4 (attuale). Su server molto vecchi (2.2) l'equivalente è:
+#     Order allow,deny
+#     Deny from all
+<FilesMatch "\.(env|log|sql|lock|json)$">
+    Require all denied
 </FilesMatch>
 
 # --------------------------------------------------------------------------
 # Riscrittura URL (mod_rewrite)
 # --------------------------------------------------------------------------
-# Abilita il motore di riscrittura.
 RewriteEngine On
 
-# RewriteBase: il percorso "radice" rispetto a cui valgono le regole. Va
-# allineato alla sottocartella in cui gira l'app (qui /cat4u/). Se sposti il
-# progetto, questa riga va aggiornata.
+# Radice rispetto a cui valgono le regole. Allineala alla sottocartella reale
+# dell'app: se sposti il progetto (o vai in produzione) aggiorna questo valore.
 RewriteBase /cat4u/
 
-# Blocca l'accesso diretto via web alle cartelle interne config/, logs/,
-# uploads/. [F] = Forbidden (403), [L] = ultima regola se combacia.
-# (Questa è una difesa importante: impedisce, ad esempio, di leggere
-# config/config.php o i log direttamente dal browser.)
-RewriteRule ^(config|logs|uploads)/.*$ - [F,L]
+# Blocca l'accesso diretto via web SOLO alle cartelle realmente interne.
+# uploads/ è volutamente ESCLUSA: i suoi file statici (PDF/QR) devono essere
+# raggiungibili. [F] = 403 Forbidden, [L] = ultima regola se combacia.
+RewriteRule ^(config|logs|partials)/ - [F,L]
 
-# Le due RewriteCond seguenti dicono: applica la regola SOTTOSTANTE solo se il
-# percorso richiesto NON corrisponde a un file reale (!-f) NÉ a una cartella
-# reale (!-d). Così asset esistenti (css, immagini…) vengono serviti
-# direttamente, senza passare dal front controller.
+# Se il percorso richiesto è un file reale (-f) o una cartella reale (-d),
+# NON riscrivere: serve direttamente (asset CSS, immagini, PDF, QR, e anche le
+# pagine .php raggiunte per percorso diretto come dashboard/login.php).
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
-# Tutto il resto (URL "puliti" che non puntano a file reali) viene inoltrato a
-# index.php, passando il percorso richiesto nel parametro _route.
-#   /cat4u/acme/volantino  →  index.php?_route=acme/volantino
-# [QSA] = mantiene anche eventuali parametri già presenti nella query string.
-# [L]   = ultima regola.
+# Tutto il resto → front controller, col percorso passato in _route.
+#   /cat4u/acme            → index.php?_route=acme
+#   /cat4u/acme/volantino  → index.php?_route=acme/volantino
+# [QSA] conserva eventuali parametri già in query string; [L] ultima regola.
 RewriteRule ^(.*)$ index.php?_route=$1 [QSA,L]

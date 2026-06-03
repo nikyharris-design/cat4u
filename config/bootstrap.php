@@ -34,3 +34,6 @@ require_once __DIR__ . '/base.php';
 // Per ultimo, perché le sue funzioni leggono $_SESSION (avviata nello step 2)
 // e usano BASE_URL (definita nello step 2) per i redirect.
 require_once __DIR__ . '/auth.php';
+
+// STEP 4: Funzioni di rate-limiting
+require_once __DIR__ . '/ratelimit.php';

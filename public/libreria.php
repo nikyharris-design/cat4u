@@ -26,8 +26,7 @@ require_once __DIR__ . '/../config/bootstrap.php';
 $slug = trim($_GET['a'] ?? '');
 
 if (empty($slug)) {
-    http_response_code(404);
-    die("Pagina non trovata.");
+    not_found();
 }
 
 // Recuperiamo l'azienda dallo slug. Se non esiste, 404.
@@ -36,8 +35,7 @@ $stmt->execute([$slug]);
 $azienda = $stmt->fetch();
 
 if (!$azienda) {
-    http_response_code(404);
-    die("Azienda non trovata.");
+    not_found("L'azienda richiesta non esiste.");
 }
 
 // --- FILTRO GENERE (opzionale) ---

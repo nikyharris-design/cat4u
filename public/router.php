@@ -1,33 +1,29 @@
 <?php
 /**
  * ==========================================================================
- * ROUTER.PHP — Disambigua il secondo segmento dell'URL pubblico
+ * ROUTER.PHP — Disambigua il secondo segmento dell'URL   [VERSIONE CORRETTA]
  * ==========================================================================
  *
- * Richiamato da index.php quando l'URL pulito ha DUE segmenti:
+ * Richiamato da index.php per gli URL pubblici a due segmenti:
  *     /nome-azienda/qualcosa
- * Quel "qualcosa" può essere lo slug di un CATALOGO oppure di un GENERE:
- * dall'URL non si capisce. Questo file interroga il DB per deciderlo.
+ * "qualcosa" può essere lo slug di un CATALOGO o di un GENERE. Qui interroghiamo
+ * il DB per deciderlo.
  *
- * index.php ha già preparato in $_GET:
- *   azienda  → slug dell'azienda
- *   catalogo → il secondo segmento (ipotesi "catalogo")
- *   genere   → lo stesso secondo segmento (ipotesi "genere")
+ * CORREZIONE: prima si leggevano $_GET['azienda'] / ['catalogo']; ora si usano
+ * $_GET['a'] / ['c'], coerenti con index.php e con le pagine incluse
+ * (catalogo.php e libreria.php leggono a/c/g). Senza questo allineamento, il
+ * catalogo veniva incluso ma trovava i suoi parametri vuoti → 404.
  *
- * Strategia: proviamo PRIMA a interpretarlo come catalogo. Se esiste un
- * catalogo con quello slug, mostriamo la pagina del catalogo; altrimenti
- * ricadiamo sulla libreria (che gestirà il caso "genere" o mostrerà tutto).
+ * Strategia: proviamo PRIMA come catalogo; se non esiste, ricadiamo sulla
+ * libreria (che userà $_GET['g'] come filtro di genere, già impostato da index.php).
  *
- * NB: questo file è incluso DOPO bootstrap.php (da index.php), quindi $pdo è
- * già disponibile.
+ * $pdo è disponibile perché bootstrap.php è già stato incluso da index.php.
  */
 
-// Leggiamo i valori preparati da index.php.
-$azienda_slug = $_GET['azienda'] ?? '';
-$secondo      = $_GET['catalogo'] ?? '';
+$azienda_slug = $_GET['a'] ?? ''; // slug azienda
+$secondo      = $_GET['c'] ?? ''; // secondo segmento (ipotesi catalogo)
 
-// Tentiamo l'interpretazione "catalogo": esiste un catalogo attivo con questo
-// slug, per questa azienda? La JOIN lega catalogo e azienda tramite gli slug.
+// Esiste un catalogo attivo con questo slug, per questa azienda?
 $stmt = $pdo->prepare("
     SELECT c.id FROM cataloghi c
     JOIN aziende a ON a.id = c.azienda_id
@@ -37,11 +33,10 @@ $stmt = $pdo->prepare("
 $stmt->execute([$azienda_slug, $secondo]);
 
 if ($stmt->fetch()) {
-    // Trovato: è un catalogo → mostriamo la pagina del singolo catalogo.
-    // (catalogo.php rileggerà gli slug da $_GET['a'] / $_GET['c']… vedi nota sotto.)
+    // È un catalogo → pagina del singolo catalogo (legge $_GET['a'] e ['c']).
     require __DIR__ . '/catalogo.php';
 } else {
-    // Nessun catalogo con quello slug → trattiamo il segmento come genere
-    // (o caso generico) e deleghiamo alla libreria, che applicherà il filtro.
+    // Non è un catalogo → libreria, eventualmente filtrata per genere
+    // (libreria.php legge $_GET['a'] e $_GET['g'], entrambi già impostati).
     require __DIR__ . '/libreria.php';
 }

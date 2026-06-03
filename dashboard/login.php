@@ -1,25 +1,21 @@
 <?php
 /**
  * ==========================================================================
- * LOGIN.PHP — Autenticazione utente
+ * LOGIN.PHP — Autenticazione utente  [CON RATE-LIMITING]
  * ==========================================================================
  *
- * Mostra il form di accesso e, su invio (POST), verifica le credenziali.
- * Se corrette, popola la sessione con i dati dell'utente e lo manda alla
- * dashboard (o al cambio password forzato, se è il primo accesso).
+ * Rispetto alla versione base, aggiunge una protezione contro il brute-force:
+ *   - dopo troppi tentativi falliti dallo stesso IP, il login viene bloccato
+ *     temporaneamente (per la durata della finestra);
+ *   - ogni credenziale errata registra un tentativo;
+ *   - un login riuscito azzera il contatore (l'utente legittimo non e' penalizzato).
  *
- * Sicurezza applicata qui:
- *   - verifica CSRF sul POST
- *   - password confrontate con password_verify() (mai in chiaro)
- *   - session_regenerate_id() contro la session fixation
- *   - messaggi di errore volutamente generici (no user enumeration)
- *   - logging di login riusciti e tentativi falliti
+ * Soglia scelta: max 5 tentativi falliti ogni 15 minuti (900s) per IP.
  */
 
 require_once __DIR__ . '/../config/bootstrap.php';
 
-// Se l'utente è GIÀ autenticato, non ha senso mostrargli il login:
-// lo rimandiamo direttamente alla dashboard.
+// Se gia' loggato -> dashboard.
 if (!empty($_SESSION['autorizzato'])) {
     header("Location: " . BASE_URL . "dashboard");
     exit();
@@ -27,65 +23,62 @@ if (!empty($_SESSION['autorizzato'])) {
 
 $error = '';
 
-// Il blocco seguente gira solo quando il form viene inviato (metodo POST).
-// Al primo caricamento della pagina (GET) si salta direttamente all'HTML.
+// Parametri del rate-limit per il login.
+const LOGIN_MAX_TENTATIVI    = 5;
+const LOGIN_FINESTRA_SECONDI = 900; // 15 minuti
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Primo controllo sempre: il token CSRF. Se non valido, lo script muore qui.
     csrf_verify();
 
-    $email    = trim($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
+    // Chiave del rate-limit: l'IP del client.
+    $ip = client_ip();
 
-    if (empty($email) || empty($password)) {
-        $error = "Compila tutti i campi.";
+    if (rate_too_many('login', $ip, LOGIN_MAX_TENTATIVI, LOGIN_FINESTRA_SECONDI)) {
+        // Troppi tentativi: blocchiamo senza nemmeno controllare le credenziali.
+        $error = "Troppi tentativi di accesso. Attendi qualche minuto e riprova.";
     } else {
-        // Cerchiamo l'utente per email usando un prepared statement:
-        // il "?" è un segnaposto, il valore arriva separato → niente SQL injection.
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch();
+        $email    = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-        // password_verify confronta la password digitata con l'hash salvato nel DB.
-        // Nel database NON c'è mai la password in chiaro, solo il suo hash bcrypt.
-        // La condizione è "utente esiste E password corretta".
-        if ($user && password_verify($password, $user['password'])) {
-
-            // SESSION FIXATION: un attaccante potrebbe far usare alla vittima un
-            // ID di sessione che conosce già. Rigenerando l'ID al login, il
-            // vecchio identificativo diventa inutile. true = cancella la sessione
-            // vecchia.
-            session_regenerate_id(true);
-
-            // Popoliamo la sessione con i dati che serviranno nelle altre pagine.
-            // 'autorizzato' è il flag letto da require_login().
-            $_SESSION['autorizzato']          = true;
-            $_SESSION['user_id']              = $user['id'];
-            $_SESSION['user_name']            = $user['name'];
-            $_SESSION['user_email']           = $user['email'];
-            $_SESSION['user_role']            = $user['role'];
-            $_SESSION['azienda_id']           = $user['azienda_id'];
-            $_SESSION['must_change_password'] = (bool)$user['must_change_password'];
-            $_SESSION['last_activity']        = time(); // avvia il cronometro del timeout
-
-            $log->info('Login effettuato', ['user_id' => $user['id'], 'email' => $email]);
-
-            // Primo accesso con password temporanea: lo costringiamo a cambiarla
-            // prima di poter usare il resto dell'app.
-            if ($user['must_change_password']) {
-                header("Location: " . BASE_URL . "dashboard/change-password.php");
-            } else {
-                header("Location: " . BASE_URL . "dashboard");
-            }
-            exit();
+        if (empty($email) || empty($password)) {
+            // Campi mancanti: non lo consideriamo un "tentativo" da conteggiare.
+            $error = "Compila tutti i campi.";
         } else {
-            // Login fallito. Registriamo il tentativo (utile per individuare
-            // attacchi brute force).
-            $log->warning('Tentativo di login fallito', ['email' => $email]);
+            $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
+            $stmt->execute([$email]);
+            $user = $stmt->fetch();
 
-            // Messaggio GENERICO e identico sia che l'email non esista, sia che
-            // la password sia sbagliata. Evita la "user enumeration": un
-            // attaccante non deve poter capire quali email sono registrate.
-            $error = "Credenziali non valide.";
+            if ($user && password_verify($password, $user['password'])) {
+                // SUCCESSO: azzeriamo i tentativi di questo IP.
+                rate_clear('login', $ip);
+
+                session_regenerate_id(true);
+
+                $_SESSION['autorizzato']          = true;
+                $_SESSION['user_id']              = $user['id'];
+                $_SESSION['user_name']            = $user['name'];
+                $_SESSION['user_email']           = $user['email'];
+                $_SESSION['user_role']            = $user['role'];
+                $_SESSION['azienda_id']           = $user['azienda_id'];
+                $_SESSION['must_change_password'] = (bool)$user['must_change_password'];
+                $_SESSION['last_activity']        = time();
+
+                $log->info('Login effettuato', ['user_id' => $user['id'], 'email' => $email]);
+
+                if ($user['must_change_password']) {
+                    header("Location: " . BASE_URL . "dashboard/change-password.php");
+                } else {
+                    header("Location: " . BASE_URL . "dashboard");
+                }
+                exit();
+            } else {
+                // FALLIMENTO: registriamo il tentativo (alimenta il contatore).
+                rate_record('login', $ip);
+
+                $log->warning('Tentativo di login fallito', ['email' => $email, 'ip' => $ip]);
+                // Messaggio generico (anti-enumerazione).
+                $error = "Credenziali non valide.";
+            }
         }
     }
 }
@@ -103,20 +96,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h1 class="text-3xl font-bold text-indigo-600 mb-1">Cat4U</h1>
         <h2 class="text-gray-500 font-normal mb-6">Accedi</h2>
 
-        <!-- Errore di validazione/credenziali (se presente). htmlspecialchars
-             previene l'XSS in caso il messaggio contenga input dell'utente. -->
         <?php if ($error): ?>
             <p class="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">
                 <?= htmlspecialchars($error) ?>
             </p>
         <?php endif; ?>
 
-        <!-- Messaggi che arrivano via query string da altre pagine:
-             ?error=timeout (sessione scaduta) o ?error=sessione_non_sicura
-             (fingerprint cambiato). Mappiamo il codice a un testo leggibile. -->
         <?php
         $msg_map = [
-            'timeout'             => 'Sessione scaduta per inattività.',
+            'timeout'             => 'Sessione scaduta per inattivita\'.',
             'sessione_non_sicura' => 'Sessione non valida. Accedi di nuovo.',
         ];
         $error_key = $_GET['error'] ?? '';
@@ -127,19 +115,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="">
-            <!-- Token CSRF: campo nascosto verificato da csrf_verify() sul POST. -->
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
 
             <label class="block text-sm font-semibold text-gray-700 mb-1">Email</label>
-            <!-- value ripopolato dopo un errore così l'utente non riscrive l'email.
-                 autofocus mette il cursore qui all'apertura della pagina. -->
             <input type="email" name="email" required autofocus
                    value="<?= htmlspecialchars($_POST['email'] ?? '') ?>"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
 
             <label class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
-            <!-- La password NON viene mai ripopolata dopo un errore: per scelta
-                 di sicurezza non la rimandiamo mai al browser. -->
             <input type="password" name="password" required
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-6 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
 
@@ -148,6 +131,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Accedi
             </button>
         </form>
+
+        <!-- Link al recupero password. -->
+        <p class="text-center mt-4">
+            <a href="<?= BASE_URL ?>dashboard/forgot-password.php"
+               class="text-gray-500 hover:underline text-sm">Password dimenticata?</a>
+        </p>
     </div>
 </body>
 </html>

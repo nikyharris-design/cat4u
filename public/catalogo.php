@@ -25,8 +25,7 @@ $catalogo_slug = trim($_GET['c'] ?? '');
 
 // Servono entrambi gli slug: senza, non c'è nulla da mostrare.
 if (empty($azienda_slug) || empty($catalogo_slug)) {
-    http_response_code(404);
-    die("Pagina non trovata.");
+    not_found();
 }
 
 // Recuperiamo l'azienda. Se non esiste, 404 dedicato.
@@ -35,8 +34,7 @@ $stmt->execute([$azienda_slug]);
 $azienda = $stmt->fetch();
 
 if (!$azienda) {
-    http_response_code(404);
-    die("Azienda non trovata.");
+    not_found("L'azienda richiesta non esiste.");
 }
 
 // Recuperiamo il catalogo, ma SOLO se è davvero "mostrabile":
@@ -58,8 +56,7 @@ $stmt->execute([$catalogo_slug, $azienda['id']]);
 $catalogo = $stmt->fetch();
 
 if (!$catalogo) {
-    http_response_code(404);
-    die("Catalogo non trovato o scaduto.");
+    not_found("Il catalogo non esiste o non è più disponibile.");
 }
 
 // URL pubblico del PDF (percorso salvato nel DB, reso assoluto con BASE_URL).
