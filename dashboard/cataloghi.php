@@ -47,6 +47,51 @@ function make_slug_cat(string $str): string {
     $str = preg_replace('/[^a-z0-9]+/', '-', $str);
     return trim($str, '-');
 }
+/**
+ * Valida un upload PDF guardando il CONTENUTO, non il MIME dichiarato dal
+ * browser ($_FILES[...]['type'] è fornito dal client ed è falsificabile).
+ *
+ * Controlli:
+ *   - esito di upload OK (UPLOAD_ERR_OK)
+ *   - dimensione entro il limite
+ *   - tipo MIME REALE via finfo (magic bytes) = application/pdf
+ *   - firma "%PDF-" nei primi byte (doppia conferma)
+ *
+ * @return string '' se valido, altrimenti il messaggio d'errore.
+ */
+function validate_pdf_upload(array $file, int $maxBytes = 20 * 1024 * 1024): string {
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        return "Errore nel caricamento del file.";
+    }
+    if ($file['size'] <= 0 || $file['size'] > $maxBytes) {
+        return "Il PDF non può superare 20MB.";
+    }
+    // is_uploaded_file: il path deve provenire davvero da un upload HTTP,
+    // non da un percorso arbitrario iniettato.
+    if (!is_uploaded_file($file['tmp_name'])) {
+        return "File non valido.";
+    }
+
+    // MIME reale dai magic bytes del file salvato sul tmp.
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime  = $finfo->file($file['tmp_name']);
+    if ($mime !== 'application/pdf') {
+        return "Il file deve essere un PDF.";
+    }
+
+    // Conferma sulla firma iniziale (i PDF iniziano con "%PDF-").
+    $fh = fopen($file['tmp_name'], 'rb');
+    if ($fh === false) {
+        return "Impossibile leggere il file.";
+    }
+    $head = fread($fh, 5);
+    fclose($fh);
+    if ($head !== '%PDF-') {
+        return "Il file deve essere un PDF.";
+    }
+
+    return '';
+}
 
 // --------------------------------------------------------------------------
 // AZIONE: ATTIVA / DISATTIVA
@@ -91,10 +136,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'caric
         $error = "Titolo e genere sono obbligatori.";
     } elseif (empty($_FILES['pdf']['name'])) {
         $error = "Seleziona un file PDF.";
-    } elseif ($_FILES['pdf']['type'] !== 'application/pdf') {
-        $error = "Il file deve essere un PDF.";
-    } elseif ($_FILES['pdf']['size'] > 20 * 1024 * 1024) {
-        $error = "Il PDF non può superare 20MB.";
+    } elseif (($pdf_err = validate_pdf_upload($_FILES['pdf'])) !== '') {
+        $error = $pdf_err;
     } else {
         $stmt = $pdo->prepare("SELECT id FROM generi WHERE id = ? AND azienda_id = ?");
         $stmt->execute([$genere_id, $azienda_id]);
@@ -191,11 +234,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'modif
             $pdf_path = $cat['pdf_path'];
 
             if (!empty($_FILES['pdf']['name'])) {
-                // È stato caricato un nuovo PDF: validiamolo e sostituiamolo.
-                if ($_FILES['pdf']['type'] !== 'application/pdf') {
-                    $error = "Il file deve essere un PDF.";
-                } elseif ($_FILES['pdf']['size'] > 20 * 1024 * 1024) {
-                    $error = "Il PDF non può superare 20MB.";
+                // È stato caricato un nuovo PDF: validiamolo (sul contenuto) e sostituiamolo.
+                if (($pdf_err = validate_pdf_upload($_FILES['pdf'])) !== '') {
+                    $error = $pdf_err;
                 } else {
                     $pdf_dir  = __DIR__ . '/../uploads/pdf/';
                     // Nuovo nome con timestamp (lo slug resta quello del catalogo).

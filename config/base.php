@@ -46,7 +46,28 @@ session_set_cookie_params($sessionParams);
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+// --------------------------------------------------------------------------
+// HEADER DI SICUREZZA (validi per tutte le pagine, via bootstrap)
+// --------------------------------------------------------------------------
+// Vanno inviati prima di qualsiasi output. Si applicano a ogni pagina perché
+// base.php è incluso da bootstrap.php.
 
+// Impedisce il "MIME sniffing": il browser rispetta il Content-Type dichiarato
+// e non prova a indovinare. Rilevante perché serviamo PDF caricati da utenti.
+header('X-Content-Type-Options: nosniff');
+
+// Anti-clickjacking: nessun sito esterno può incorniciare le nostre pagine.
+// NB: i nostri iframe di catalogo.php sono same-origin, quindi non si rompono.
+header('X-Frame-Options: SAMEORIGIN');
+
+// Limita le informazioni inviate nel Referer verso siti esterni.
+header('Referrer-Policy: strict-origin-when-cross-origin');
+
+// HSTS: forza HTTPS sulle visite successive. Lo inviamo SOLO se siamo già in
+// HTTPS, altrimenti in locale (http) bloccheremmo l'accesso al sito.
+if ($is_https) {
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
 // --------------------------------------------------------------------------
 // FINGERPRINT DELLA SESSIONE (anti session hijacking)
 // --------------------------------------------------------------------------

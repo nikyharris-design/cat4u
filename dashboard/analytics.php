@@ -31,15 +31,41 @@ require_password_changed();
 $user          = current_user();
 $is_superadmin = $user['role'] === 'superadmin';
 
-// --------------------------------------------------------------------------
-// LETTURA DEI FILTRI (dalla query string)
-// --------------------------------------------------------------------------
-// az = azienda, g = genere, c = catalogo. 0 = "nessun filtro a questo livello".
-// Per l'admin, il filtro azienda è forzato alla sua azienda (non può cambiarlo).
-$filtro_azienda  = (int)($_GET['az'] ?? ($is_superadmin ? 0 : $user['azienda_id']));
+/// AZIENDA: il superadmin sceglie liberamente (0 = tutte). Chiunque altro è
+// VINCOLATO alla propria azienda: $_GET['az'] viene IGNORATO del tutto, così un
+// admin non può leggere i dati di un'altra azienda passando ?az=<altro_id>.
+if ($is_superadmin) {
+    $filtro_azienda = (int)($_GET['az'] ?? 0);
+} else {
+    $filtro_azienda = (int)$user['azienda_id'];
+}
+
 $filtro_genere   = (int)($_GET['g'] ?? 0);
 $filtro_catalogo = (int)($_GET['c'] ?? 0);
 
+// VALIDAZIONE DI PROPRIETÀ: un genere/catalogo è accettato come filtro solo se
+// appartiene DAVVERO all'azienda corrente. Altrimenti lo azzeriamo. Questo
+// chiude l'IDOR: senza il controllo, ?c=<id> usava "ca.catalogo_id = ?" su
+// QUALSIASI catalogo, scavalcando il filtro per azienda.
+if ($filtro_genere > 0) {
+    if ($filtro_azienda <= 0) {
+        $filtro_genere = 0; // superadmin senza azienda scelta: filtro privo di senso
+    } else {
+        $chk = $pdo->prepare("SELECT 1 FROM generi WHERE id = ? AND azienda_id = ? LIMIT 1");
+        $chk->execute([$filtro_genere, $filtro_azienda]);
+        if (!$chk->fetchColumn()) $filtro_genere = 0;
+    }
+}
+
+if ($filtro_catalogo > 0) {
+    if ($filtro_azienda <= 0) {
+        $filtro_catalogo = 0;
+    } else {
+        $chk = $pdo->prepare("SELECT 1 FROM cataloghi WHERE id = ? AND azienda_id = ? LIMIT 1");
+        $chk->execute([$filtro_catalogo, $filtro_azienda]);
+        if (!$chk->fetchColumn()) $filtro_catalogo = 0;
+    }
+}
 // --------------------------------------------------------------------------
 // LISTE PER I MENU A TENDINA (popolate "a cascata")
 // --------------------------------------------------------------------------
