@@ -92,6 +92,7 @@ if ($azienda_id) {
             <h3 class="text-sm font-semibold text-gray-500 uppercase mb-4">Accesso rapido</h3>
             <div class="flex flex-wrap gap-3">
                 <!-- Link disponibili a tutti i ruoli autenticati. -->
+                 <?php if ($user['role'] !== 'superadmin'): ?>
                 <a href="<?= BASE_URL ?>dashboard/cataloghi.php"
                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
                     + Carica catalogo
@@ -100,6 +101,7 @@ if ($azienda_id) {
                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
                     Gestione Generi
                 </a>
+                <?php endif; ?>
 
                 <!-- Analytics: solo superadmin e admin (non gli utenti "user"). -->
                 <?php if (in_array($user['role'], ['superadmin', 'admin'])): ?>

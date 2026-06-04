@@ -25,7 +25,7 @@
 require_once __DIR__ . '/../config/bootstrap.php';
 
 // Accesso consentito a tutti e tre i ruoli autenticati.
-require_role('superadmin', 'admin' , 'user');
+require_role( 'admin' , 'user');
 require_password_changed();
 
 $user = current_user();

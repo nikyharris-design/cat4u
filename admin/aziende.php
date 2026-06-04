@@ -75,12 +75,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
     $partita_iva    = trim($_POST['partita_iva'] ?? '');
     $email_contatto = trim($_POST['email_contatto'] ?? '');
 
+    // Verifica nome duplicato.
+    // In MODIFICA escludiamo l'azienda stessa (id <> ?), altrimenti salvare
+    // senza cambiare il nome darebbe un falso "duplicato".
+    // Il confronto è già case-insensitive con la collation di default (utf8mb4_..._ci),
+    // quindi "Acme" e "acme" vengono trattati come lo stesso nome.
+    if ($_POST['action'] === 'modifica') {
+        $stmtDup = $pdo->prepare("SELECT id FROM aziende WHERE nome_azienda = ? AND id <> ? LIMIT 1");
+        $stmtDup->execute([$nome_azienda, $id]);
+    } else {
+        $stmtDup = $pdo->prepare("SELECT id FROM aziende WHERE nome_azienda = ? LIMIT 1");
+        $stmtDup->execute([$nome_azienda]);
+    }
+    $nome_duplicato = (bool) $stmtDup->fetch();
+
     // Validazione comune a crea e modifica.
     if (empty($nome_azienda) || empty($tipo_azienda) || empty($partita_iva) || empty($email_contatto)) {
         $error = "Compila tutti i campi.";
     } elseif (!filter_var($email_contatto, FILTER_VALIDATE_EMAIL)) {
         // filter_var con FILTER_VALIDATE_EMAIL controlla che l'email sia ben formata.
         $error = "Email non valida.";
+    } elseif ($nome_duplicato) {
+        // Esiste già un'azienda con lo stesso nome: blocchiamo il salvataggio.
+        $error = "Esiste già un'azienda registrata con questo nome. Scegline un altro.";
     } else {
         try {
             if ($_POST['action'] === 'crea') {

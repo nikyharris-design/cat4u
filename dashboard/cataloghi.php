@@ -18,7 +18,7 @@
  */
 
 require_once __DIR__ . '/../config/bootstrap.php';
-require_role('superadmin', 'admin' , 'user');
+require_role( 'admin' , 'user');
 require_password_changed();
 
 use Endroid\QrCode\QrCode;
