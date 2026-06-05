@@ -62,7 +62,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['azienda_id']           = $user['azienda_id'];
                 $_SESSION['must_change_password'] = (bool)$user['must_change_password'];
                 $_SESSION['last_activity']        = time();
-
+                $_SESSION['must_change_password'] = (bool)$user['must_change_password'];
+                $_SESSION['last_activity']        = time();
+                // NUOVO: riferimento temporale dell'ultimo cambio password noto al login.
+                // Serve a invalidare questa sessione se la password viene cambiata altrove.
+                $_SESSION['pwd_changed_at']       = $user['password_changed_at'] ?? null;
                 $log->info('Login effettuato', ['user_id' => $user['id'], 'email' => $email]);
 
                 if ($user['must_change_password']) {

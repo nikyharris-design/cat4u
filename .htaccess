@@ -23,7 +23,7 @@ Options -Indexes
 # Sintassi Apache 2.4 (attuale). Su server molto vecchi (2.2) l'equivalente è:
 #     Order allow,deny
 #     Deny from all
-<FilesMatch "\.(env|log|sql|lock|json)$">
+<FilesMatch "\.(env|log|sql|lock|json|bak)$">
     Require all denied
 </FilesMatch>
 
@@ -39,7 +39,7 @@ RewriteBase /cat4u/
 # Blocca l'accesso diretto via web SOLO alle cartelle realmente interne.
 # uploads/ è volutamente ESCLUSA: i suoi file statici (PDF/QR) devono essere
 # raggiungibili. [F] = 403 Forbidden, [L] = ultima regola se combacia.
-RewriteRule ^(config|logs|partials)/ - [F,L]
+RewriteRule ^(config|logs|partials|vendor|node_modules|\.git)/ - [F,L]
 
 # Se il percorso richiesto è un file reale (-f) o una cartella reale (-d),
 # NON riscrivere: serve direttamente (asset CSS, immagini, PDF, QR, e anche le

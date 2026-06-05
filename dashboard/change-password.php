@@ -30,43 +30,62 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
 
+    $current_password = $_POST['current_password'] ?? '';
     $new_password     = $_POST['new_password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
 
-    // Regola minima di robustezza: almeno 8 caratteri. (Lato browser è già
-    // imposto da minlength, ma qui lo riverifichiamo: la validazione client
-    // è solo comodità, quella server è la vera difesa.)
-    if (strlen($new_password) < 8) {
-        $error = "La password deve essere di almeno 8 caratteri.";
-    } elseif ($new_password !== $confirm_password) {
-        // Le due password digitate devono coincidere.
-        $error = "Le password non coincidono.";
-    } else {
-        // Calcoliamo l'hash bcrypt: è ciò che verrà salvato, mai la password
-        // in chiaro. bcrypt include automaticamente un "salt" casuale.
-        $hash = password_hash($new_password, PASSWORD_BCRYPT);
+    // È un cambio "volontario" o il primo accesso forzato?
+    $forzato = !empty($_SESSION['must_change_password']);
 
-        // Aggiorniamo la riga dell'utente:
-        //  - nuova password (hash)
-        //  - must_change_password = 0 → il vincolo è sciolto
-        //  - password_changed_at = NOW() → traccia quando è avvenuto il cambio
-        $stmt = $pdo->prepare("
-            UPDATE users
-            SET password = ?, must_change_password = 0, password_changed_at = NOW()
-            WHERE id = ?
-        ");
-        $stmt->execute([$hash, $_SESSION['user_id']]);
+    // Per il cambio volontario serve verificare la password ATTUALE: impedisce
+    // che una sessione altrui possa cambiare la password senza conoscerla.
+    if (!$forzato) {
+        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ? LIMIT 1");
+        $stmt->execute([$_SESSION['user_id']]);
+        $hash_attuale = $stmt->fetchColumn();
 
-        // IMPORTANTE: allineiamo anche la SESSIONE. Il DB ora dice 0, ma in
-        // sessione il flag era true; senza questa riga require_password_changed()
-        // continuerebbe a rimandare l'utente qui a ogni pagina.
-        $_SESSION['must_change_password'] = false;
+        if (!$hash_attuale || !password_verify($current_password, $hash_attuale)) {
+            $error = "La password attuale non è corretta.";
+        }
+    }
 
-        $log->info('Password cambiata', ['user_id' => $_SESSION['user_id']]);
+    if (empty($error)) {
+        if (strlen($new_password) < 8) {
+            $error = "La password deve essere di almeno 8 caratteri.";
+        } elseif ($new_password !== $confirm_password) {
+            $error = "Le password non coincidono.";
+        } elseif (!$forzato && $current_password === $new_password) {
+            // Piccola igiene: la nuova non può essere identica alla vecchia.
+            $error = "La nuova password deve essere diversa da quella attuale.";
+        } else {
+            $hash = password_hash($new_password, PASSWORD_BCRYPT);
 
-        // Tutto fatto: l'utente può finalmente entrare nella dashboard.
-        header("Location: " . BASE_URL . "dashboard/index.php");
-        exit();
+            $stmt = $pdo->prepare("
+                UPDATE users
+                SET password = ?, must_change_password = 0, password_changed_at = NOW()
+                WHERE id = ?
+            ");
+            $stmt->execute([$hash, $_SESSION['user_id']]);
+
+            // Allineiamo la sessione: flag sciolto…
+            $_SESSION['must_change_password'] = false;
+
+            // …e RIGENERIAMO l'id di sessione (difesa anti session-fixation
+            // dopo un cambio di credenziali).
+            session_regenerate_id(true);
+
+            // IMPORTANTE: riallineiamo il riferimento temporale di QUESTA
+            // sessione, altrimenti il controllo in base.php la chiuderebbe
+            // subito (vedrebbe il DB più recente della sessione).
+            $stmt = $pdo->prepare("SELECT password_changed_at FROM users WHERE id = ? LIMIT 1");
+            $stmt->execute([$_SESSION['user_id']]);
+            $_SESSION['pwd_changed_at'] = $stmt->fetchColumn();
+
+            $log->info('Password cambiata', ['user_id' => $_SESSION['user_id']]);
+
+            header("Location: " . BASE_URL . "dashboard/index.php");
+            exit();
+        }
     }
 }
 ?>
@@ -94,6 +113,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" action="">
             <!-- Token CSRF obbligatorio. -->
             <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+            <?php if (empty($_SESSION['must_change_password'])): ?>
+<label class="block text-sm font-semibold text-gray-700 mb-1">Password attuale</label>
+<input type="password" name="current_password" required
+       class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+<?php endif; ?>
 
             <label class="block text-sm font-semibold text-gray-700 mb-1">Nuova password</label>
             <!-- minlength="8" = controllo lato browser (riverificato lato server). -->

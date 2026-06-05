@@ -138,15 +138,37 @@ function not_found(string $messaggio = "La pagina che cerchi non esiste o è sta
 $timeout_duration = 1800; // 30 minuti
 
 if (isset($_SESSION['autorizzato'])) {
-    if (isset($_SESSION['last_activity'])) {
-        $elapsed_time = time() - $_SESSION['last_activity'];
-        if ($elapsed_time > $timeout_duration) {
+
+    // --- INVALIDAZIONE SESSIONE SU CAMBIO PASSWORD ALTROVE ---
+    // Se nel DB password_changed_at è più recente del valore registrato al
+    // login di QUESTA sessione, la password è stata cambiata/reimpostata da
+    // un'altra parte: questa sessione non è più valida.
+    if (!empty($_SESSION['user_id'])) {
+        $stmtPwd = $pdo->prepare("SELECT password_changed_at FROM users WHERE id = ? LIMIT 1");
+        $stmtPwd->execute([(int)$_SESSION['user_id']]);
+        $db_pwd_changed = $stmtPwd->fetchColumn();
+
+        // Utente sparito dal DB → fuori.
+        if ($db_pwd_changed === false) {
             session_unset();
             session_destroy();
-            header("Location: " . BASE_URL . "dashboard/login.php?error=timeout");
+            header("Location: " . BASE_URL . "dashboard/login.php");
+            exit();
+        }
+
+        $sess_pwd_changed = $_SESSION['pwd_changed_at'] ?? null;
+        // strtotime(null/'') → false; lo trattiamo come 0 (nessun cambio noto).
+        $db_ts   = $db_pwd_changed ? strtotime($db_pwd_changed) : 0;
+        $sess_ts = $sess_pwd_changed ? strtotime($sess_pwd_changed) : 0;
+
+        if ($db_ts > $sess_ts) {
+            session_unset();
+            session_destroy();
+            header("Location: " . BASE_URL . "dashboard/login.php?error=sessione_non_sicura");
             exit();
         }
     }
+
     $_SESSION['last_activity'] = time();
 }
 
