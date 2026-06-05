@@ -52,19 +52,35 @@ if (session_status() === PHP_SESSION_NONE) {
 // Vanno inviati prima di qualsiasi output. Si applicano a ogni pagina perché
 // base.php è incluso da bootstrap.php.
 
-// Impedisce il "MIME sniffing": il browser rispetta il Content-Type dichiarato
-// e non prova a indovinare. Rilevante perché serviamo PDF caricati da utenti.
+// Impedisce il "MIME sniffing": il browser rispetta il Content-Type dichiarato.
 header('X-Content-Type-Options: nosniff');
 
 // Anti-clickjacking: nessun sito esterno può incorniciare le nostre pagine.
-// NB: i nostri iframe di catalogo.php sono same-origin, quindi non si rompono.
+// I nostri iframe (fallback PDF) sono same-origin, quindi non si rompono.
 header('X-Frame-Options: SAMEORIGIN');
 
 // Limita le informazioni inviate nel Referer verso siti esterni.
 header('Referrer-Policy: strict-origin-when-cross-origin');
 
-// HSTS: forza HTTPS sulle visite successive. Lo inviamo SOLO se siamo già in
-// HTTPS, altrimenti in locale (http) bloccheremmo l'accesso al sito.
+// Content-Security-Policy. Le direttive sono tarate sul flipbook:
+//   - script-src 'self'         → niente script inline (l'URL del PDF passa
+//                                  via data-attribute, non interpolato)
+//   - worker-src 'self' blob:   → PDF.js istanzia il proprio Web Worker
+//   - img-src 'self' data: blob:→ le pagine renderizzate sono data/blob URL
+//   - style-src 'unsafe-inline' → finché restano stili inline nelle pagine
+//   - object-src 'none'         → nessun plugin/embed
+//   - frame-ancestors 'self'    → raddoppia l'anti-clickjacking
+header("Content-Security-Policy: default-src 'self'; "
+     . "script-src 'self'; "
+     . "worker-src 'self' blob:; "
+     . "img-src 'self' data: blob:; "
+     . "style-src 'self' 'unsafe-inline'; "
+     . "object-src 'none'; "
+     . "base-uri 'self'; "
+     . "frame-ancestors 'self'");
+
+// HSTS: forza HTTPS sulle visite successive. Solo se siamo già in HTTPS,
+// altrimenti in locale (http) bloccheremmo l'accesso.
 if ($is_https) {
     header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 }

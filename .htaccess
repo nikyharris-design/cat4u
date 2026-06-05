@@ -13,7 +13,9 @@
 
 # Disattiva il listing automatico delle cartelle prive di index.
 Options -Indexes
-
+<FilesMatch "\.mjs$">
+    ForceType text/javascript
+</FilesMatch>
 # --------------------------------------------------------------------------
 # Blocco accesso diretto a file sensibili (per estensione)
 # --------------------------------------------------------------------------
