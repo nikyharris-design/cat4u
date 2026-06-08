@@ -154,6 +154,16 @@ function not_found(string $messaggio = "La pagina che cerchi non esiste o è sta
 $timeout_duration = 1800; // 30 minuti
 
 if (isset($_SESSION['autorizzato'])) {
+    // --- TIMEOUT DI INATTIVITÀ ---
+    // Se è passato più di $timeout_duration dall'ultima attività, la sessione
+    // è scaduta: la distruggiamo e rimandiamo al login con avviso dedicato.
+    if (isset($_SESSION['last_activity'])
+        && (time() - $_SESSION['last_activity']) > $timeout_duration) {
+        session_unset();
+        session_destroy();
+        header("Location: " . BASE_URL . "dashboard/login.php?error=timeout");
+        exit();
+    }
 
     // --- INVALIDAZIONE SESSIONE SU CAMBIO PASSWORD ALTROVE ---
     // Se nel DB password_changed_at è più recente del valore registrato al

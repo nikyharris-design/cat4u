@@ -60,8 +60,15 @@ function make_slug_cat(string $str): string {
  * @return string '' se valido, altrimenti il messaggio d'errore.
  */
 function validate_pdf_upload(array $file, int $maxBytes = 20 * 1024 * 1024): string {
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-        return "Errore nel caricamento del file.";
+    $err = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+    if ($err !== UPLOAD_ERR_OK) {
+        return match ($err) {
+            UPLOAD_ERR_INI_SIZE,
+            UPLOAD_ERR_FORM_SIZE => "Il PDF è troppo grande (max 20MB).",
+            UPLOAD_ERR_PARTIAL   => "Il caricamento si è interrotto. Riprova.",
+            UPLOAD_ERR_NO_FILE   => "Seleziona un file PDF.",
+            default              => "Errore nel caricamento del file.",
+        };
     }
     if ($file['size'] <= 0 || $file['size'] > $maxBytes) {
         return "Il PDF non può superare 20MB.";
@@ -92,7 +99,18 @@ function validate_pdf_upload(array $file, int $maxBytes = 20 * 1024 * 1024): str
 
     return '';
 }
-
+// --------------------------------------------------------------------------
+// POST TRONCATO: upload oltre post_max_size
+// --------------------------------------------------------------------------
+// Se la richiesta è POST ma $_POST e $_FILES sono vuoti pur essendoci un
+// corpo (CONTENT_LENGTH > 0), PHP ha scartato tutto perché troppo grande:
+// il limite post_max_size è stato superato. Nessun ramo 'action' scatterebbe,
+// quindi lo intercettiamo qui per dare un messaggio chiaro.
+if ($_SERVER['REQUEST_METHOD'] === 'POST'
+    && empty($_POST) && empty($_FILES)
+    && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
+    $error = "File troppo grande: l'upload supera il limite del server. Il PDF non può superare 20MB.";
+}
 // --------------------------------------------------------------------------
 // AZIONE: ATTIVA / DISATTIVA
 // --------------------------------------------------------------------------

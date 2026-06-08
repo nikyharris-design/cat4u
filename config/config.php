@@ -31,6 +31,15 @@
 // (Monolog, Dotenv, Endroid QrCode…) appena le usi, senza require manuali.
 // Prerequisito: aver eseguito `composer install` per generare la cartella vendor/.
 require_once __DIR__ . '/../vendor/autoload.php';
+// --------------------------------------------------------------------------
+// GESTIONE ERRORI: mai a schermo, sempre nel log del server.
+// --------------------------------------------------------------------------
+// display_errors a 0 impedisce che warning/notice (incluso quello di PHP sul
+// POST troppo grande) finiscano nella pagina mostrata all'utente. Gli errori
+// restano registrati nel log PHP per il debug.
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
  
 // Importiamo nello scope corrente le classi di Monolog che useremo a breve,
 // così possiamo scrivere "Logger" invece del nome completo "Monolog\Logger".
