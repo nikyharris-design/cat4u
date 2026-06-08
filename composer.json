@@ -4,5 +4,8 @@
         "monolog/monolog": "^3.10",
         "endroid/qr-code": "^6.0",
         "phpmailer/phpmailer": "^7.1"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.2"
     }
 }
