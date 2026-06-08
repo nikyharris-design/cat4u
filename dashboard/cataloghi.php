@@ -313,6 +313,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
     <title>Cataloghi — Cat4U</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
 </head>
+<script src="<?= BASE_URL ?>assets/js/dashboard.js"></script>
 <body class="bg-gray-100 min-h-screen">
     <?php require __DIR__ . '/../partials/header.php'; ?>
     <main class="max-w-5xl mx-auto py-8 px-4">
@@ -329,7 +330,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
 <div class="bg-white rounded-xl shadow p-4 mb-6">
     <form method="GET" action="" class="flex items-center gap-3">
         <label class="text-sm font-semibold text-gray-700">Azienda:</label>
-        <select name="az" onchange="this.form.submit()"
+        <select name="az" data-autosubmit
                 class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
             <option value="">— Seleziona azienda —</option>
             <?php foreach ($aziende_list as $az): ?>
@@ -489,7 +490,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
                                         <?= $c['is_active'] ? 'Disattiva' : 'Attiva' ?>
                                     </button>
                                 </form>
-                                <form method="POST" onsubmit="return confirm('Eliminare questo catalogo?')">
+                                <form method="POST" data-confirm="Eliminare questo catalogo?">
                                     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                     <input type="hidden" name="action" value="elimina">
                                     <input type="hidden" name="id" value="<?= $c['id'] ?>">

@@ -173,6 +173,7 @@ if (isset($_GET['modifica'])) {
     <meta charset="UTF-8">
     <title>Gestione Aziende — Cat4U</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
+    <script src="<?= BASE_URL ?>assets/js/dashboard.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <?php require __DIR__ . '/../partials/header.php'; ?>
@@ -295,7 +296,7 @@ if (isset($_GET['modifica'])) {
                     Modifica
                 </a>
                 <!-- Eliminazione con conferma JS + CSRF. -->
-                <form method="POST" onsubmit="return confirm('Eliminare questa azienda?')">
+                <form method="POST" data-confirm="Eliminare questa azienda?">
                     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                     <input type="hidden" name="action" value="elimina">
                     <input type="hidden" name="id" value="<?= $a['id'] ?>">

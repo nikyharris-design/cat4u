@@ -207,6 +207,7 @@ foreach ($per_giorno as $r) {
     <title>Analytics — Cat4U</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
 </head>
+<script src="<?= BASE_URL ?>assets/js/dashboard.js"></script>
 <body class="bg-gray-100 min-h-screen">
     <?php require __DIR__ . '/../partials/header.php'; ?>
     <main class="max-w-5xl mx-auto py-8 px-4">
@@ -225,7 +226,7 @@ foreach ($per_giorno as $r) {
                 <?php if ($is_superadmin): ?>
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Azienda</label>
-                    <select name="az" onchange="this.form.submit()"
+                    <select name="az" data-autosubmit
                             class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
                         <option value="0">— Tutte —</option>
                         <?php foreach ($aziende_list as $az): ?>
@@ -242,7 +243,7 @@ foreach ($per_giorno as $r) {
                 <?php if (!empty($generi_list)): ?>
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Genere</label>
-                    <select name="g" onchange="this.form.submit()"
+                    <select name="g" data-autosubmit
                             class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
                         <option value="0">— Tutti —</option>
                         <?php foreach ($generi_list as $g): ?>
@@ -258,7 +259,7 @@ foreach ($per_giorno as $r) {
                 <?php if (!empty($cataloghi_list)): ?>
                <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Catalogo</label>
-                    <select name="c" onchange="this.form.submit()"
+                    <select name="c" data-autosubmit
                             class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
                         <option value="0">— Tutti —</option>
                         <?php foreach ($cataloghi_list as $cat): ?>
@@ -274,8 +275,7 @@ foreach ($per_giorno as $r) {
                 <?php if ($filtro_azienda || $filtro_genere || $filtro_catalogo): ?>
                 <a href="<?= BASE_URL ?>dashboard/analytics.php"
                    style="display:inline-flex; align-items:center; align-self:center; height:38px; padding:0 1rem; background:#e5e7eb; color:#374151; border-radius:0.5rem; font-size:0.875rem; font-weight:500; text-decoration:none; white-space:nowrap;"
-                   onmouseover="this.style.background='#d1d5db'"
-                   onmouseout="this.style.background='#e5e7eb'">
+                  data-base-bg="#e5e7eb" data-hover-bg="#d1d5db">
                     Reset filtri
                 </a>
                 <?php endif; ?>

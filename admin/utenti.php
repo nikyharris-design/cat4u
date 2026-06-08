@@ -155,6 +155,7 @@ $aziende = $is_superadmin
     <meta charset="UTF-8">
     <title>Gestione Utenti — Cat4U</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
+    <script src="<?= BASE_URL ?>assets/js/dashboard.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <?php require __DIR__ . '/../partials/header.php'; ?>
@@ -204,7 +205,7 @@ $aziende = $is_superadmin
     <label class="block text-sm font-semibold text-gray-700 mb-1">Ruolo</label>
     <!-- onchange chiama toggleAzienda(): nasconde il campo azienda se si sceglie
          "superadmin" (che non ha azienda). È solo UX: il controllo vero è server-side. -->
-    <select name="role" id="role-select" onchange="toggleAzienda(this.value)"
+    <select name="role" id="role-select" 
             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
         <option value="admin">Admin</option>
         <option value="user">User</option>
@@ -285,7 +286,7 @@ $aziende = $is_superadmin
                         <td class="px-4 py-3">
                             <!-- Non si mostra il pulsante "Elimina" sulla propria riga. -->
                             <?php if ($u['id'] !== (int)$_SESSION['user_id']): ?>
-                            <form method="POST" onsubmit="return confirm('Eliminare questo utente?')">
+                            <form method="POST" data-confirm="Eliminare questo utente?">
                                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                 <input type="hidden" name="action" value="elimina">
                                 <input type="hidden" name="id" value="<?= $u['id'] ?>">
@@ -305,13 +306,5 @@ $aziende = $is_superadmin
         </div>
     </main>
 
-    <script>
-    // Nasconde/mostra il campo "Azienda" nel form: un superadmin non ha azienda,
-    // quindi scegliendo quel ruolo il campo sparisce. Puro miglioramento UX.
-    function toggleAzienda(role) {
-        document.getElementById('azienda-field').style.display =
-            role === 'superadmin' ? 'none' : 'block';
-    }
-    </script>
 </body>
 </html>

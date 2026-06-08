@@ -122,6 +122,7 @@ $generi = $generi->fetchAll();
     <meta charset="UTF-8">
     <title>Generi — Cat4U</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
+    <script src="<?= BASE_URL ?>assets/js/dashboard.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <?php require __DIR__ . '/../partials/header.php'; ?>
@@ -150,7 +151,7 @@ $generi = $generi->fetchAll();
 <div class="bg-white rounded-xl shadow p-4 mb-6">
     <form method="GET" action="" class="flex items-center gap-3">
         <label class="text-sm font-semibold text-gray-700">Azienda:</label>
-        <select name="az" onchange="this.form.submit()"
+        <select name="az" data-autosubmit
                 class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
             <option value="">— Seleziona azienda —</option>
             <?php foreach ($aziende_list as $az): ?>
@@ -206,7 +207,7 @@ $generi = $generi->fetchAll();
                                  controllo di sicurezza resta lato server (CSRF +
                                  verifica di proprietà). -->
                             <form method="POST" style="display:inline"
-                                  onsubmit="return confirm('Eliminare questo genere?')">
+                                  data-confirm="Eliminare questo genere?">
                                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                 <input type="hidden" name="action" value="elimina">
                                 <input type="hidden" name="id" value="<?= $g['id'] ?>">
