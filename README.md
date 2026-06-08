@@ -22,4 +22,8 @@ Per eseguire Cat4U in locale servono:
 5. **Verifica i permessi della cartella `uploads/`**, in modo che l'applicazione possa salvarci i PDF e i QR generati.
 
 6. **Avvia Apache e MySQL** dal pannello di XAMPP e apri il progetto nel browser:
+## Variabili d'ambiente
 
+La configurazione sensibile (credenziali database, chiavi API, parametri email) non è scritta nel codice ma in un file `.env` nella cartella principale, che **non viene mai versionato** (è escluso dal `.gitignore`).
+
+Per sapere quali variabili servono, fai riferimento al file `.env.example`: contiene l'elenco completo delle chiavi di configurazione, senza valori sensibili. Per partire, copialo in `.env` e compila i valori con i tuoi dati.
