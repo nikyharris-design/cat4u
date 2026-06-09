@@ -62,13 +62,6 @@ if (!$catalogo) {
 // URL pubblico del PDF (percorso salvato nel DB, reso assoluto con BASE_URL).
 $pdf_url = BASE_URL . ltrim($catalogo['pdf_path'], '/');
 
-// Controllo Safe Browsing prima di esporre il PDF. Ricorda: isUrlSafe() è
-// "fail-open" (vedi base.php) → se l'API non risponde o manca la chiave,
-// considera l'URL sicuro e lascia passare.
-if (!isUrlSafe($pdf_url)) {
-    http_response_code(403);
-    die("Contenuto non disponibile.");
-}
 
 // --------------------------------------------------------------------------
 // TRACCIAMENTO (analytics)
