@@ -94,7 +94,23 @@ $stmt->execute([$catalogo['id'], $device_type, $ip_hash]);
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-100 min-h-screen">
 
+    <!-- Barra di servizio per l'utente loggato: NON visibile ai visitatori pubblici.
+         Compare solo se la sessione è autenticata, per non lasciare l'admin
+         in un vicolo cieco quando apre un catalogo dalla sua area. -->
+    <?php if (!empty($_SESSION['autorizzato'])): ?>
+    <div class="bg-gray-800 text-white text-sm">
+        <div class="max-w-5xl mx-auto px-4 h-10 flex items-center">
+            <a href="<?= BASE_URL ?>dashboard/index.php" class="hover:underline">
+                ← Torna alla dashboard
+            </a>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Header pubblico con link di ritorno alla libreria dell'azienda. -->
+    <header class="bg-indigo-600 text-white shadow"></header>
     <!-- Header pubblico con link di ritorno alla libreria dell'azienda. -->
     <header class="bg-indigo-600 text-white shadow">
         <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
