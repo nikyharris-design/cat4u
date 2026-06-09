@@ -1,0 +1,25 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  controlli:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Prepara PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Installa le dipendenze
+        run: composer install
+
+      - name: Analisi statica (PHPStan)
+        run: vendor/bin/phpstan analyse
+
+      - name: Test unitari (PHPUnit)
+        run: vendor/bin/phpunit tests

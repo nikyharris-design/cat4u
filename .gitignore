@@ -17,5 +17,4 @@ vendor/
 /uploads/qr/
 /uploads/.htaccess
 /node_modules/
-# dev tools#
-phpstan.neon
+

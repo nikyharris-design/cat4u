@@ -1,0 +1,12 @@
+parameters:
+    level: 3
+    paths:
+        - config
+        - dashboard
+        - admin
+        - public
+        - partials
+        - index.php
+    ignoreErrors:
+        - '#Variable \$pdo might not be defined#'
+        - '#Variable \$log might not be defined#'
