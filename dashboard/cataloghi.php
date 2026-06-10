@@ -29,14 +29,9 @@ use Endroid\QrCode\ErrorCorrectionLevel;
 
 $user = current_user();
 
-// PATTERN: da quale azienda operiamo (superadmin sceglie, gli altri sono fissi).
-if ($user['role'] === 'superadmin') {
-    $azienda_id = (int)($_GET['az'] ?? $_POST['az'] ?? 0);
-    $aziende_list = $pdo->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azienda ASC")->fetchAll();
-} else {
-    $azienda_id = (int)$user['azienda_id'];
-    $aziende_list = [];
-}
+// Da quale azienda operiamo. Admin e user sono sempre vincolati alla propria
+// azienda (il superadmin non accede a questa pagina: vedi require_role).
+$azienda_id = (int)$user['azienda_id'];
 
 $error   = '';
 $success = '';
@@ -344,22 +339,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
             </a>
         </div>
 
-        <?php if ($user['role'] === 'superadmin'): ?>
-<div class="bg-white rounded-xl shadow p-4 mb-6">
-    <form method="GET" action="" class="flex items-center gap-3">
-        <label class="text-sm font-semibold text-gray-700">Azienda:</label>
-        <select name="az" data-autosubmit
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-            <option value="">— Seleziona azienda —</option>
-            <?php foreach ($aziende_list as $az): ?>
-                <option value="<?= $az['id'] ?>" <?= $azienda_id === $az['id'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($az['nome_azienda']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </form>
-</div>
-<?php endif; ?>
+
 
         <?php if ($error): ?>
             <p class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm"><?= $error ?></p>
@@ -384,9 +364,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
                 <?php if ($modifica): ?>
                     <input type="hidden" name="id" value="<?= $modifica['id'] ?>">
                 <?php endif; ?>
-                <?php if ($user['role'] === 'superadmin'): ?>
-<input type="hidden" name="az" value="<?= $azienda_id ?>">
-<?php endif; ?>
+               
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Titolo</label>
@@ -437,7 +415,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
                     </button>
                     <?php if ($modifica): ?>
                         <!-- Annulla: torna alla pagina cataloghi (mantenendo l'azienda per il superadmin). -->
-                        <a href="<?= BASE_URL ?>dashboard/cataloghi.php<?= $user['role'] === 'superadmin' ? '?az=' . $azienda_id : '' ?>"
+                      <a href="<?= BASE_URL ?>dashboard/cataloghi.php"
                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium transition">
                             Annulla
                         </a>
@@ -492,7 +470,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
                         <td class="px-4 py-3">
                             <div class="flex gap-2">
                                 <!-- MODIFICA: ricarica la pagina in modalità modifica (con az per il superadmin). -->
-                                <a href="?modifica=<?= $c['id'] ?><?= $user['role'] === 'superadmin' ? '&az=' . $azienda_id : '' ?>"
+                              <a href="?modifica=<?= $c['id'] ?>"
                                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-medium transition">
                                     Modifica
                                 </a>
@@ -500,9 +478,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
                                     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                     <input type="hidden" name="action" value="<?= $c['is_active'] ? 'disattiva' : 'attiva' ?>">
                                     <input type="hidden" name="id" value="<?= $c['id'] ?>">
-                                    <?php if ($user['role'] === 'superadmin'): ?>
-<input type="hidden" name="az" value="<?= $azienda_id ?>">
-<?php endif; ?>
+                                 
                                     <button type="submit"
                                             class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs font-medium transition">
                                         <?= $c['is_active'] ? 'Disattiva' : 'Attiva' ?>
@@ -512,9 +488,7 @@ if ($modifica && !empty($modifica['data_scadenza'])) {
                                     <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                                     <input type="hidden" name="action" value="elimina">
                                     <input type="hidden" name="id" value="<?= $c['id'] ?>">
-                                    <?php if ($user['role'] === 'superadmin'): ?>
-<input type="hidden" name="az" value="<?= $azienda_id ?>">
-<?php endif; ?>
+                                   
                                     <button type="submit"
                                             class="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded text-xs font-medium transition">
                                         Elimina

@@ -59,8 +59,11 @@ if (!$catalogo) {
     not_found("Il catalogo non esiste o non è più disponibile.");
 }
 
-// URL pubblico del PDF (percorso salvato nel DB, reso assoluto con BASE_URL).
-$pdf_url = BASE_URL . ltrim($catalogo['pdf_path'], '/');
+// URL del PDF: NON più il file diretto (ora bloccato dall'.htaccess in
+// uploads/pdf/), ma il guardiano pdf.php, che ripete i controlli prima di
+// servirlo. Passiamo gli stessi slug a/c già validati sopra.
+$pdf_url = BASE_URL . 'public/pdf.php?a='
+    . urlencode($azienda_slug) . '&c=' . urlencode($catalogo_slug);
 
 
 // --------------------------------------------------------------------------
@@ -94,11 +97,7 @@ $stmt->execute([$catalogo['id'], $device_type, $ip_hash]);
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
-<body class="bg-gray-100 min-h-screen">
-
-  
-   
-    <!-- Header pubblico con link di ritorno alla libreria dell'azienda. -->
+  <!-- Header pubblico con link di ritorno alla libreria dell'azienda. -->
     <header class="bg-indigo-600 text-white shadow">
         <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
             <!-- Il nome azienda riporta alla home pubblica (URL pulito). -->

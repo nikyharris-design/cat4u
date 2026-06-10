@@ -30,17 +30,9 @@ require_password_changed();
 
 $user = current_user();
 
-// --- PATTERN 1: da quale azienda stiamo operando? ---
-if ($user['role'] === 'superadmin') {
-    // Il superadmin sceglie l'azienda. L'id può arrivare da GET (cambio menu) o
-    // da POST (invio di un'azione). Carichiamo anche l'elenco per il menu.
-    $azienda_id = (int)($_GET['az'] ?? $_POST['az'] ?? 0);
-    $aziende_list = $pdo->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azienda ASC")->fetchAll();
-} else {
-    // Admin e user sono vincolati alla propria azienda: niente scelta.
-    $azienda_id = (int)$user['azienda_id'];
-    $aziende_list = [];
-}
+// Da quale azienda stiamo operando. Admin e user sono sempre vincolati alla
+// propria azienda (il superadmin non accede a questa pagina: vedi require_role).
+$azienda_id = (int)$user['azienda_id'];
 
 $error   = '';
 $success = '';
@@ -145,25 +137,7 @@ $generi = $generi->fetchAll();
             <p class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm"><?= htmlspecialchars($success) ?></p>
         <?php endif; ?>
 
-        <!-- Selettore azienda: visibile SOLO al superadmin. onchange invia il
-             form da sé, ricaricando la pagina con l'azienda scelta. -->
-        <?php if ($user['role'] === 'superadmin'): ?>
-<div class="bg-white rounded-xl shadow p-4 mb-6">
-    <form method="GET" action="" class="flex items-center gap-3">
-        <label class="text-sm font-semibold text-gray-700">Azienda:</label>
-        <select name="az" data-autosubmit
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-            <option value="">— Seleziona azienda —</option>
-            <?php foreach ($aziende_list as $az): ?>
-                <!-- L'opzione corrispondente all'azienda corrente resta selezionata. -->
-                <option value="<?= $az['id'] ?>" <?= $azienda_id === $az['id'] ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($az['nome_azienda']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-    </form>
-</div>
-<?php endif; ?>
+
 
         <!-- FORM: nuovo genere. -->
         <div class="bg-white rounded-xl shadow p-6 mb-6">
