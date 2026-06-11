@@ -11,5 +11,6 @@ parameters:
     ignoreErrors:
         - '#Variable \$pdo might not be defined#'
         - '#Variable \$log might not be defined#'
-        - '#Variable \$error might not be defined#'
-        - '#Variable \$success might not be defined#'
+        -
+            message: '#Variable \$[a-zA-Z_]+ might not be defined#'
+            path: views/*
