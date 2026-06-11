@@ -37,3 +37,6 @@ require_once __DIR__ . '/auth.php';
 
 // STEP 4: Funzioni di rate-limiting
 require_once __DIR__ . '/ratelimit.php';
+
+// STEP 5: Funzioni di utilità condivise (es. make_slug)
+require_once __DIR__ . '/helpers.php';

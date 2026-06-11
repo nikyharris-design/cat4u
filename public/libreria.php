@@ -110,6 +110,15 @@ $cataloghi = $stmt->fetchAll();
         <div class="max-w-5xl mx-auto px-4 h-14 flex items-center">
             <span class="font-bold text-lg"><?= htmlspecialchars($azienda['nome_azienda']) ?></span>
         </div>
+         <?php if (!empty($_SESSION['autorizzato'])): ?>
+    <div class="bg-indigo-800 text-white text-sm">
+        <div class="max-w-5xl mx-auto px-4 h-10 flex items-center">
+            <a href="<?= BASE_URL ?>dashboard/index.php" class="hover:underline">
+                ← Torna alla dashboard
+            </a>
+        </div>
+    </div>
+    <?php endif; ?>
     </header>
 
     <main class="max-w-5xl mx-auto py-8 px-4">

@@ -2,14 +2,11 @@
 
 use PHPUnit\Framework\TestCase;
 
-// Copia della funzione make_slug (presa da dashboard/generi.php) per poterla
-// testare in isolamento, senza caricare l'intero file con le sue dipendenze.
-function make_slug(string $str): string {
-    $str = mb_strtolower(trim($str));
-    $str = strtr($str, ['à'=>'a','è'=>'e','é'=>'e','ì'=>'i','ò'=>'o','ù'=>'u']);
-    $str = preg_replace('/[^a-z0-9]+/', '-', $str);
-    return trim($str, '-');
-}
+// Carichiamo la funzione REALE da config/helpers.php, così il test verifica
+// esattamente il codice che gira in produzione (non una copia che potrebbe
+// divergere col tempo). helpers.php contiene solo funzioni pure, senza
+// dipendenze da $pdo o sessione, quindi è sicuro includerlo da solo.
+require_once __DIR__ . '/../config/helpers.php';
 
 class MakeSlugTest extends TestCase
 {

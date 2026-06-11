@@ -36,12 +36,7 @@ $azienda_id = (int)$user['azienda_id'];
 $error   = '';
 $success = '';
 
-function make_slug_cat(string $str): string {
-    $str = mb_strtolower(trim($str));
-    $str = strtr($str, ['à'=>'a','è'=>'e','é'=>'e','ì'=>'i','ò'=>'o','ù'=>'u']);
-    $str = preg_replace('/[^a-z0-9]+/', '-', $str);
-    return trim($str, '-');
-}
+
 /**
  * Valida un upload PDF guardando il CONTENUTO, non il MIME dichiarato dal
  * browser ($_FILES[...]['type'] è fornito dal client ed è falsificabile).
@@ -157,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'caric
         if (!$stmt->fetch()) {
             $error = "Genere non valido.";
         } else {
-            $base_slug = make_slug_cat($titolo);
+            $base_slug = make_slug($titolo);
             $slug = $base_slug;
             $i = 1;
             while (true) {

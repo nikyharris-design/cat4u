@@ -37,19 +37,6 @@ $azienda_id = (int)$user['azienda_id'];
 $error   = '';
 $success = '';
 
-/**
- * Trasforma una stringa in uno "slug" usabile in URL.
- * Es: "Càffè & Té" → "caffe-te".
- * Passaggi: minuscolo + trim → sostituzione accenti → ogni gruppo di caratteri
- * non alfanumerici diventa un trattino → si tolgono i trattini ai bordi.
- */
-function make_slug(string $str): string {
-    $str = mb_strtolower(trim($str)); // minuscolo (mb_ = sicuro con UTF-8)
-    $str = strtr($str, ['à'=>'a','è'=>'e','é'=>'e','ì'=>'i','ò'=>'o','ù'=>'u']);
-    $str = preg_replace('/[^a-z0-9]+/', '-', $str); // tutto il resto → "-"
-    return trim($str, '-'); // niente trattini iniziali/finali
-}
-
 // --------------------------------------------------------------------------
 // AZIONE: ELIMINA un genere
 // --------------------------------------------------------------------------

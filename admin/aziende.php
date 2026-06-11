@@ -34,13 +34,6 @@ use Endroid\QrCode\ErrorCorrectionLevel;
 $error   = '';
 $success = '';
 
-// PATTERN: slug da stringa (spiegazione dettagliata in generi.php).
-function make_slug_azienda(string $str): string {
-    $str = mb_strtolower(trim($str));
-    $str = strtr($str, ['à'=>'a','è'=>'e','é'=>'e','ì'=>'i','ò'=>'o','ù'=>'u']);
-    $str = preg_replace('/[^a-z0-9]+/', '-', $str);
-    return trim($str, '-');
-}
 
 // --------------------------------------------------------------------------
 // AZIONE: ELIMINA un'azienda
@@ -103,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
             if ($_POST['action'] === 'crea') {
                 // --- CREAZIONE ---
                 // PATTERN slug univoco.
-                $base_slug = make_slug_azienda($nome_azienda);
+                $base_slug = make_slug($nome_azienda);
                 $slug = $base_slug;
                 $i = 1;
                 while (true) {
