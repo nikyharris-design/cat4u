@@ -1,0 +1,79 @@
+<?php
+/**
+ * ==========================================================================
+ * LIBRERIA.VIEW.PHP — Vista della vetrina pubblica di un'azienda
+ * ==========================================================================
+ *
+ * Solo presentazione. Inclusa da public/libreria.php dopo che il controller ha
+ * preparato i dati. Variabili già disponibili: $azienda, $generi,
+ * $genere_attivo (null se nessun filtro), $cataloghi. Pagina PUBBLICA: nessun
+ * $user, nessun header della dashboard. Non va mai aperta direttamente
+ * (views/.htaccess).
+ */
+?>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= htmlspecialchars($azienda['nome_azienda']) ?> — Cataloghi</title>
+    <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- Header pubblico: niente navigazione interna, solo il nome azienda. -->
+    <header class="bg-indigo-600 text-white shadow">
+        <div class="max-w-5xl mx-auto px-4 h-14 flex items-center">
+            <span class="font-bold text-lg"><?= htmlspecialchars($azienda['nome_azienda']) ?></span>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto py-8 px-4">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Cataloghi</h1>
+        <p class="text-gray-500 text-sm mb-6"><?= htmlspecialchars($azienda['nome_azienda']) ?></p>
+
+        <!-- TAB DI FILTRO PER GENERE (solo se ci sono generi con cataloghi). -->
+        <?php if (!empty($generi)): ?>
+        <div class="flex flex-wrap gap-2 mb-6">
+            <!-- "Tutti": evidenziato quando nessun genere è attivo. -->
+            <a href="<?= BASE_URL ?>public/libreria.php?a=<?= htmlspecialchars($azienda['slug']) ?>"
+               class="<?= !$genere_attivo ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50' ?> px-4 py-1.5 rounded-full text-sm font-medium border border-gray-200 transition">
+                Tutti
+            </a>
+            <?php foreach ($generi as $g): ?>
+            <!-- Ogni tab è evidenziata se è il genere attualmente filtrato. -->
+            <a href="<?= BASE_URL ?>public/libreria.php?a=<?= htmlspecialchars($azienda['slug']) ?>&g=<?= htmlspecialchars($g['slug']) ?>"
+               class="<?= ($genere_attivo && $genere_attivo['id'] === $g['id']) ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50' ?> px-4 py-1.5 rounded-full text-sm font-medium border border-gray-200 transition">
+                <?= htmlspecialchars($g['nome_genere']) ?>
+            </a>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- GRIGLIA DEI CATALOGHI (o messaggio se vuota). -->
+        <?php if (empty($cataloghi)): ?>
+            <p class="text-gray-400 text-sm text-center py-12">Nessun catalogo disponibile.</p>
+        <?php else: ?>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <?php foreach ($cataloghi as $c): ?>
+            <!-- Ogni card è un link alla pagina del singolo catalogo. -->
+            <a href="<?= BASE_URL ?>public/catalogo.php?a=<?= htmlspecialchars($azienda['slug']) ?>&c=<?= htmlspecialchars($c['slug']) ?>"
+               class="bg-white rounded-xl shadow hover:shadow-md transition p-5 flex flex-col gap-2">
+                <div class="flex items-start justify-between">
+                    <h2 class="font-semibold text-gray-800"><?= htmlspecialchars($c['titolo']) ?></h2>
+                    <span class="bg-indigo-50 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                        <?= htmlspecialchars($c['nome_genere']) ?>
+                    </span>
+                </div>
+                <?php if ($c['data_scadenza']): ?>
+                <p class="text-xs text-gray-400">Valido fino al <?= date('d/m/Y', strtotime($c['data_scadenza'])) ?></p>
+                <?php endif; ?>
+                <!-- mt-auto spinge questa riga in fondo alla card, allineando le card. -->
+                <p class="text-indigo-600 text-sm font-medium mt-auto">Apri catalogo →</p>
+            </a>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </main>
+</body>
+</html>
