@@ -1,0 +1,11 @@
+# ==========================================================================
+# views/.htaccess — Blocca l'accesso diretto via web alle viste
+# ==========================================================================
+# I file di questa cartella sono solo "pezzi di HTML" inclusi dai controller
+# (es. dashboard/generi.php include views/generi.view.php). NON devono essere
+# aperti direttamente via URL: presi da soli non avrebbero le variabili che si
+# aspettano e mostrerebbero pagine rotte o frammenti.
+#
+# Stessa logica con cui config/ e logs/ sono già bloccati.
+
+Require all denied
