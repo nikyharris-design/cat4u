@@ -75,7 +75,7 @@ $dotenv->load();
 // required() impone che queste variabili ESISTANO: se ne manca anche una,
 // viene lanciata subito un'eccezione chiara, invece di far emergere errori
 // oscuri più avanti (es. connessione che fallisce senza spiegazioni).
-$dotenv->required(['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'GOOGLE_SAFE_BROWSING_KEY']);
+$dotenv->required(['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME']);
  
 // Lettura delle credenziali dall'ambiente: nessun dato sensibile è scritto
 // nel codice sorgente (che spesso finisce su Git). Il .env resta locale.
