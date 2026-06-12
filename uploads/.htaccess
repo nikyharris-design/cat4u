@@ -1,0 +1,26 @@
+# ==========================================================================
+# uploads/.htaccess — protezione della cartella upload
+# ==========================================================================
+# I file qui (PDF dei cataloghi, PNG dei QR) restano SCARICABILI dal web, ma
+# non deve essere possibile eseguirvi codice. La difesa chiave è il blocco per
+# estensione qui sotto: vale con qualunque handler (mod_php o PHP-FPM).
+
+# Niente elenco dei file della cartella.
+Options -Indexes
+
+# Qui si servono solo file statici: nessuna logica di routing ereditata.
+RewriteEngine Off
+
+# --------------------------------------------------------------------------
+# Blocco esecuzione di qualsiasi script
+# --------------------------------------------------------------------------
+# Nega l'accesso (e quindi l'esecuzione) ai file con estensioni eseguibili.
+# Anche un finto "PDF" contenente PHP, se finisse qui, non verrebbe servito.
+<FilesMatch "\.(php|php\d|phtml|phps|phar|pl|py|cgi|sh|asp|aspx)$">
+    Require all denied
+</FilesMatch>
+
+# I PDF serviti col tipo corretto.
+<FilesMatch "\.pdf$">
+    ForceType application/pdf
+</FilesMatch>
