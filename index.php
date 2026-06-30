@@ -60,12 +60,29 @@ $router->mount('/admin', function () use ($router, $includi) {
 // ROTTE PUBBLICHE — gli slug. La più specifica (2 segmenti) PRIMA.
 // --------------------------------------------------------------------------
 
-// /azienda/qualcosa → disambiguazione catalogo-vs-genere (logica nel DB).
-$router->get('/([\w-]+)/([\w-]+)', function ($azienda, $secondo) {
+// /azienda/qualcosa → il secondo segmento può essere CATALOGO o GENERE.
+// Hanno lo stesso pattern URL, quindi la distinzione la fa il DB (non bramus):
+// proviamo prima come catalogo attivo; se non esiste, ricadiamo sulla libreria
+// (dove $_GET['g'] funge da filtro genere). È la stessa logica che stava in
+// public/router.php, ora dichiarata direttamente qui: un solo punto di routing.
+$router->get('/([\w-]+)/([\w-]+)', function ($azienda, $secondo) use ($pdo) {
     $_GET['a'] = $azienda;
-    $_GET['c'] = $secondo;  // ipotesi catalogo
-    $_GET['g'] = $secondo;  // ipotesi genere
-    require __DIR__ . '/public/router.php';
+    $_GET['c'] = $secondo;  // ipotesi: slug catalogo
+    $_GET['g'] = $secondo;  // ipotesi: slug genere
+
+    $stmt = $pdo->prepare("
+        SELECT c.id FROM cataloghi c
+        JOIN aziende a ON a.id = c.azienda_id
+        WHERE a.slug = ? AND c.slug = ? AND c.is_active = 1
+        LIMIT 1
+    ");
+    $stmt->execute([$azienda, $secondo]);
+
+    if ($stmt->fetch()) {
+        require __DIR__ . '/public/catalogo.php';   // è un catalogo
+    } else {
+        require __DIR__ . '/public/libreria.php';    // è (forse) un genere → libreria filtrata
+    }
     exit();
 });
 
