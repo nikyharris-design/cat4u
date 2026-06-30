@@ -1,73 +1,92 @@
 <?php
 /**
  * ==========================================================================
- * INDEX.PHP — Front Controller (router principale)   [VERSIONE CORRETTA]
+ * INDEX.PHP — Front Controller con bramus/router (rotte raggruppate)
  * ==========================================================================
  *
- * Tutte le richieste con URL "pulito" passano da qui (grazie all'.htaccess che
- * le riscrive in index.php?_route=...). Questo file smista verso la pagina giusta.
+ * bramus/router fa SOLO l'instradamento: per ogni rotta richiama i file
+ * esistenti, invariati. Approccio conservativo: la logica catalogo-vs-genere
+ * resta in public/router.php.
  *
- * CORREZIONE rispetto alla versione precedente:
- *   Prima si valorizzavano $_GET['azienda'] / ['catalogo'] / ['genere'], ma le
- *   pagine pubbliche (libreria.php, catalogo.php) leggono $_GET['a'] / ['c'] /
- *   ['g']. I nomi non combaciavano → le pagine raggiunte via URL pulito davano
- *   404. Ora usiamo direttamente a/c/g, gli STESSI nomi dei link diretti e dei
- *   QR, così entrambi i percorsi funzionano in modo identico.
+ * Le rotte sono raggruppate per area con mount(): dentro un gruppo, i path sono
+ * RELATIVI al prefisso (es. dentro mount('/dashboard'), '/generi' = /dashboard/generi).
+ * Raggruppare non cambia il comportamento: serve solo a tenere il file ordinato
+ * quando le rotte crescono.
  */
 
 require_once __DIR__ . '/config/bootstrap.php';
 
-// Percorso richiesto, passato dall'.htaccess nel parametro _route.
-$route = trim($_GET['_route'] ?? '', '/');
+use Bramus\Router\Router;
+
+$router = new Router();
+
+// Helper: include un file e termina (come il vecchio require + exit).
+$includi = function (string $relPath): void {
+    require __DIR__ . $relPath;
+    exit();
+};
 
 // --------------------------------------------------------------------------
-// CASO 1 — Nessuna rotta: redirect a dashboard (se loggato) o login.
+// ROTTA VUOTA — redirect a dashboard (se loggato) o login.
 // --------------------------------------------------------------------------
-if ($route === '') {
+$router->get('/', function () {
     header("Location: " . BASE_URL . (!empty($_SESSION['autorizzato']) ? 'dashboard/index.php' : 'dashboard/login.php'));
     exit();
-}
+});
 
 // --------------------------------------------------------------------------
-// CASO 2 — Rotte "dirette" (whitelist): rotta pulita → file PHP reale.
+// AREA DASHBOARD — tutto ciò che sta sotto /dashboard.
 // --------------------------------------------------------------------------
-$rotte_dirette = [
-    'dashboard/login'    => '/dashboard/login.php',
-    'dashboard/logout'   => '/dashboard/logout.php',
-    'dashboard/password' => '/dashboard/change-password.php',
-    'dashboard'          => '/dashboard/index.php',
-    'dashboard/cataloghi'=> '/dashboard/cataloghi.php',
-    'dashboard/generi'   => '/dashboard/generi.php',
-    'admin/aziende'      => '/admin/aziende.php',
-    'admin/utenti'       => '/admin/utenti.php',
-];
+$router->mount('/dashboard', function () use ($router, $includi) {
+    // /dashboard (indice del gruppo): si dichiara con '/'.
+    $router->get('/', fn() => $includi('/dashboard/index.php'));
 
-if (isset($rotte_dirette[$route])) {
-    require __DIR__ . $rotte_dirette[$route];
-    exit();
-}
+    $router->match('GET|POST', '/login',     fn() => $includi('/dashboard/login.php'));
+    $router->get('/logout',                  fn() => $includi('/dashboard/logout.php'));
+    $router->match('GET|POST', '/password',  fn() => $includi('/dashboard/change-password.php'));
+    $router->match('GET|POST', '/cataloghi', fn() => $includi('/dashboard/cataloghi.php'));
+    $router->match('GET|POST', '/generi',    fn() => $includi('/dashboard/generi.php'));
+});
 
 // --------------------------------------------------------------------------
-// CASO 3 — Rotte pubbliche: i segmenti dell'URL sono slug.
+// AREA ADMIN — tutto ciò che sta sotto /admin.
 // --------------------------------------------------------------------------
-$parti = explode('/', $route);
+$router->mount('/admin', function () use ($router, $includi) {
+    $router->match('GET|POST', '/aziende', fn() => $includi('/admin/aziende.php'));
+    $router->match('GET|POST', '/utenti',  fn() => $includi('/admin/utenti.php'));
+});
 
-if (count($parti) === 1) {
-    // /nome-azienda → libreria pubblica dell'azienda.
-    // Usiamo 'a', il nome che libreria.php si aspetta. Nessun 'g' → niente filtro.
-    $_GET['a'] = $parti[0];
-    require __DIR__ . '/public/libreria.php';
+// --------------------------------------------------------------------------
+// ROTTE PUBBLICHE — gli slug. La più specifica (2 segmenti) PRIMA.
+// --------------------------------------------------------------------------
 
-} elseif (count($parti) === 2) {
-    // /nome-azienda/qualcosa → il secondo segmento può essere catalogo O genere.
-    // Prepariamo entrambe le ipotesi coi nomi reali (c e g) e lasciamo decidere
-    // a router.php in base al DB.
-    $_GET['a'] = $parti[0]; // slug azienda
-    $_GET['c'] = $parti[1]; // ipotesi: slug catalogo
-    $_GET['g'] = $parti[1]; // ipotesi: slug genere
+// /azienda/qualcosa → disambiguazione catalogo-vs-genere (logica nel DB).
+$router->get('/([\w-]+)/([\w-]+)', function ($azienda, $secondo) {
+    $_GET['a'] = $azienda;
+    $_GET['c'] = $secondo;  // ipotesi catalogo
+    $_GET['g'] = $secondo;  // ipotesi genere
     require __DIR__ . '/public/router.php';
+    exit();
+});
 
-} else {
-    // Tre o più segmenti: non previsto → pagina 404 stilizzata.
+// /azienda → libreria pubblica.
+$router->get('/([\w-]+)', function ($azienda) {
+    $_GET['a'] = $azienda;
+    require __DIR__ . '/public/libreria.php';
+    exit();
+});
+
+// --------------------------------------------------------------------------
+// 404 — rotte non riconosciute.
+// --------------------------------------------------------------------------
+$router->set404(function () {
     not_found();
-}
+});
+
+// --------------------------------------------------------------------------
+// Avvio: passiamo a bramus la rotta "pulita" dall'.htaccess.
+// --------------------------------------------------------------------------
+$route = '/' . trim($_GET['_route'] ?? '', '/');
+$_SERVER['REQUEST_URI'] = $route;
+
+$router->run();
