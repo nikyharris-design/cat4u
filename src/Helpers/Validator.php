@@ -46,10 +46,19 @@ class Validator
     /**
      * Valore "pulito" (trim) di un campo. Se manca o non è una stringa, ''.
      */
-    private function value(string $field): string
+   private function value(string $field): string
     {
         $v = $this->data[$field] ?? '';
-        return is_string($v) ? trim($v) : '';
+        // Accettiamo anche numeri (int/float): da un form arrivano stringhe, ma
+        // da un'API o da un test un campo numerico è legittimo. Tutto il resto
+        // (array, null, oggetti…) è trattato come "vuoto".
+        if (is_string($v)) {
+            return trim($v);
+        }
+        if (is_int($v) || is_float($v)) {
+            return (string)$v;
+        }
+        return '';
     }
 
     /**
