@@ -102,6 +102,18 @@ class Validator
         return $this;
     }
 
+   /**
+     * Aggiunge "a mano" un errore di business (es. un valore duplicato nel DB),
+     * non derivante da una regola di formato. Stesso comportamento delle regole:
+     * un solo messaggio per campo. Utile ai service per unire i loro controlli
+     * a quelli di formato e lanciarli tutti insieme.
+     */
+    public function add(string $field, string $message): self
+    {
+        $this->addError($field, $message);
+        return $this;
+    }
+
     /** True se è stato raccolto almeno un errore. */
     public function fails(): bool
     {

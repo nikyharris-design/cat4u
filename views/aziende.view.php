@@ -30,7 +30,15 @@
             </a>
         </div>
 
-        <?php if ($error): ?>
+       <?php if (!empty($errors)): ?>
+            <div class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
+                <ul class="list-disc list-inside space-y-1">
+                    <?php foreach ($errors as $msg): ?>
+                        <li><?= htmlspecialchars($msg) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php elseif ($error): ?>
             <p class="bg-red-100 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm"><?= htmlspecialchars($error) ?></p>
         <?php endif; ?>
         <?php if ($success): ?>
