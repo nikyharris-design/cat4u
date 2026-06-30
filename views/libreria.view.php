@@ -21,14 +21,29 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-    <!-- Header pubblico: niente navigazione interna, solo il nome azienda. -->
+    <!-- Barra di servizio per l'utente loggato: NON visibile ai visitatori
+         pubblici. Compare solo se la sessione è autenticata, così l'admin che
+         arriva qui da un catalogo non resta in un vicolo cieco. Stessa logica
+         della pagina catalogo.view.php. -->
+  
+
+   <!-- Header pubblico: nome azienda a sinistra. Per l'utente loggato, a destra
+         compare il link alla dashboard (invisibile ai visitatori pubblici). -->
     <header class="bg-indigo-600 text-white shadow">
-        <div class="max-w-5xl mx-auto px-4 h-14 flex items-center">
+        <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
             <span class="font-bold text-lg"><?= htmlspecialchars($azienda['nome_azienda']) ?></span>
+            <?php if (!empty($_SESSION['autorizzato'])): ?>
+            <a href="<?= BASE_URL ?>dashboard/index.php"
+               style="color:#c7d2fe;font-size:.875rem;text-decoration:none;"
+               onmouseover="this.style.color='#fff'"
+               onmouseout="this.style.color='#c7d2fe'">
+                ← Torna alla dashboard
+            </a>
+            <?php endif; ?>
         </div>
     </header>
 
-    <main class="max-w-5xl mx-auto py-8 px-4">
+   <main class="max-w-5xl mx-auto py-8 px-4">
         <h1 class="text-2xl font-bold text-gray-800 mb-2">Cataloghi</h1>
         <p class="text-gray-500 text-sm mb-6"><?= htmlspecialchars($azienda['nome_azienda']) ?></p>
 

@@ -33,14 +33,14 @@ $success = '';
 // --------------------------------------------------------------------------
 // AZIONE: ELIMINA un genere
 // --------------------------------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'elimina') 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'elimina') {
     csrf_verify();
     $id = (int)($_POST['id'] ?? 0);
 
     // Controllo di proprietà: eliminiamo solo se il genere appartiene davvero
     // all'azienda corrente. Impedisce di cancellare generi di altre aziende
     // manomettendo l'id nel form.
-$stmt = $pdo->prepare("SELECT id FROM generi WHERE id = ? AND azienda_id = ?");
+    $stmt = $pdo->prepare("SELECT id FROM generi WHERE id = ? AND azienda_id = ?");
     $stmt->execute([$id, $azienda_id]);
     if ($stmt->fetch()) {
         try {
@@ -54,6 +54,7 @@ $stmt = $pdo->prepare("SELECT id FROM generi WHERE id = ? AND azienda_id = ?");
     } else {
         $error = "Operazione non consentita.";
     }
+}
 
 // --------------------------------------------------------------------------
 // AZIONE: CREA un genere
