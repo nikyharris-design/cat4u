@@ -52,8 +52,11 @@ function require_role(string ...$roles): void {
     if (!in_array($_SESSION['user_role'] ?? '', $roles, true)) {
         // Sei loggato ma il tuo ruolo non rientra tra quelli ammessi:
         // 403 Forbidden e stop. (Diverso dal 401/redirect del non-loggato.)
-        http_response_code(403);
-        die("Accesso negato.");
+       // Loggato ma senza il ruolo richiesto: 403 via eccezione, gestita
+        // centralmente dall'handler invece che con un die() grezzo.
+        throw new \App\Exceptions\ForbiddenException(
+            "Non hai i permessi per accedere a questa pagina."
+        );
     }
 }
 

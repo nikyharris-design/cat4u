@@ -25,6 +25,11 @@
 // e config.php valida anche le variabili d'ambiente indispensabili.
 require_once __DIR__ . '/config.php';
 
+// STEP 1.5 — Error handler globale (rete di sicurezza), registrato subito dopo
+// config.php: $log esiste già e, da qui in avanti, ogni eccezione non catturata
+// diventa una pagina di errore pulita invece di un crash grezzo.
+\App\ErrorHandler::register();
+
 // STEP 2 — Sessione, BASE_URL, fingerprint, CSRF e timeout.
 // Richiede che l'ambiente (.env) sia già caricato; definisce BASE_URL e avvia
 // la sessione, su cui si basa lo step 3.

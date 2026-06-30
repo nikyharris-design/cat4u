@@ -125,8 +125,12 @@ function csrf_verify(): void {
     $token_ricevuto = $_POST['csrf_token'] ?? '';
     $token_sessione = $_SESSION['csrf_token'] ?? '';
     if (empty($token_sessione) || !hash_equals($token_sessione, $token_ricevuto)) {
-        http_response_code(403);
-        die("Richiesta non valida. Possibile attacco CSRF.");
+       // Token mancante o non combaciante (possibile CSRF, o più spesso una
+        // sessione scaduta): 403 via eccezione. L'error handler globale la
+        // trasforma in pagina pulita con lo stato corretto.
+        throw new \App\Exceptions\ForbiddenException(
+            "Richiesta non valida. Ricarica la pagina e riprova."
+        );
     }
 }
 
@@ -134,18 +138,21 @@ function csrf_verify(): void {
 // not_found() — pagina 404 centralizzata
 // --------------------------------------------------------------------------
 /**
- * Imposta lo stato HTTP 404 e mostra la pagina 404 stilizzata, poi termina.
+ * Lancia una NotFoundException (404): la pagina di errore viene poi prodotta
+ * centralmente dall'error handler globale. Non ritorna mai (never).
  * Sostituisce i vari die("...") con testo grezzo: tutte le pagine possono
  * chiamare not_found() per una "pagina non trovata" coerente.
  *
  * @param string $messaggio testo mostrato all'utente (personalizzabile per contesto)
  */
-function not_found(string $messaggio = "La pagina che cerchi non esiste o è stata rimossa."): void {
-    http_response_code(404);
-    // Reso disponibile alla view 404.php.
-    $messaggio_404 = $messaggio;
-    require __DIR__ . '/../public/404.php';
-    exit();
+function not_found(string $messaggio = "La pagina che cerchi non esiste o è stata rimossa."): never {
+    // Stessa firma e stessi messaggi di prima, ma invece di renderizzare qui
+    // lanciamo l'eccezione: l'error handler globale produce la pagina 404 in
+    // modo centralizzato. Così TUTTE le chiamate a not_found(...) nei controller
+    // passano dall'handler senza toccare ogni singolo file.
+    // (public/404.php resta per eventuali ErrorDocument di Apache, cioè i 404
+    // che non arrivano nemmeno a PHP.)
+    throw new \App\Exceptions\NotFoundException($messaggio);
 }
 
 // --------------------------------------------------------------------------
