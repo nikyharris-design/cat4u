@@ -1,1 +1,116 @@
 @import "tailwindcss";
+
+/* ==========================================================================
+   TEMA SCURO — Cat4U
+   --------------------------------------------------------------------------
+   Queste regole vengono DOPO @import "tailwindcss": stanno fuori dai @layer di
+   Tailwind e, per le regole della cascata v4, battono le utility (una regola
+   "senza layer" vince su una "con layer") SENZA bisogno di !important.
+   Ridefiniamo il SIGNIFICATO delle utility già usate nel markup, così tutto il
+   sito diventa scuro senza toccare i file PHP.
+
+   Regola colori concordata:
+     - superfici        → scure
+     - scritte / link   → BLU
+     - logout / elimina → ROSSO
+   ========================================================================== */
+
+:root{
+    color-scheme: dark;                 /* scrollbar e controlli nativi scuri */
+
+    --bg:#0e0f14;                       /* sfondo pagina */
+    --surface:#171922;                  /* card, header, pannelli */
+    --surface-2:#1f222c;                /* input, bottoni neutri, righe tabella */
+    --hover:#282c38;                    /* hover dei neutri */
+    --border:#2b2f3a;                   /* bordi e divisori */
+
+    --text:#e7e9ef;                     /* testo principale */
+    --muted:#969cac;                    /* testo secondario */
+
+    --link:#60a5fa;                     /* BLU: scritte / link */
+    --link-hover:#93c5fd;
+
+    --danger:#f87171;                   /* ROSSO: testo logout / elimina */
+    --danger-bg:rgba(239,68,68,0.15);
+    --danger-bg-hover:rgba(239,68,68,0.28);
+
+    --success:#86efac;
+    --success-bg:rgba(34,197,94,0.15);
+    --warning:#fde047;
+    --warning-bg:rgba(234,179,8,0.15);
+}
+
+/* --- Sfondo e testo base --- */
+body{ background-color:var(--bg); color:var(--text); }
+
+/* --- Superfici scure --- */
+.bg-white{ background-color:var(--surface); }
+.bg-gray-50{ background-color:var(--surface-2); }
+.bg-gray-100{ background-color:var(--bg); }
+.bg-gray-200{ background-color:var(--surface-2); }
+.bg-gray-200:hover{ background-color:var(--hover); }
+
+/* --- Header: da barra indigo piena a superficie scura --- */
+header{ background-color:var(--surface); border-bottom:1px solid var(--border); box-shadow:none; }
+header a.text-indigo-200{ color:var(--link); }          /* link header → blu */
+header a.text-indigo-200:hover{ color:var(--text); }
+
+/* --- Testi --- */
+.text-gray-800{ color:var(--text); }
+.text-gray-700{ color:var(--text); }
+.text-gray-500{ color:var(--muted); }
+.text-gray-400{ color:var(--muted); }
+.text-indigo-200{ color:var(--muted); }                 /* es. nome utente (span) */
+
+/* --- Scritte / link accento → BLU --- */
+.text-indigo-600{ color:var(--link); }
+.text-indigo-700{ color:var(--link); }
+.text-blue-600{ color:var(--link); }
+a.text-indigo-600:hover{ color:var(--link-hover); }
+
+/* --- Badge / chip indigo --- */
+.bg-indigo-50{ background-color:rgba(99,102,241,0.18); }
+
+/* Il bottone primario (.bg-indigo-600 + text-white) resta accento pieno:
+   volutamente NON lo tocchiamo. */
+
+/* --- DANGER: logout ed elimina in ROSSO --- */
+.bg-red-100{ background-color:var(--danger-bg); }
+.bg-red-100:hover{ background-color:var(--danger-bg-hover); }
+.text-red-700{ color:var(--danger); }
+.text-red-300{ color:var(--danger); }                   /* link "Esci" */
+
+/* --- SUCCESS --- */
+.bg-green-100{ background-color:var(--success-bg); }
+.text-green-700{ color:var(--success); }
+.text-green-600{ color:var(--success); }
+
+/* --- WARNING --- */
+.bg-yellow-50,.bg-yellow-100{ background-color:var(--warning-bg); }
+.text-yellow-700,.text-yellow-800{ color:var(--warning); }
+
+/* --- Bordi --- */
+.border-gray-200{ border-color:var(--border); }
+.border-gray-300{ border-color:var(--border); }
+
+/* --- Campi input scuri --- */
+input,select,textarea{ background-color:var(--surface-2); color:var(--text); }
+input::placeholder,textarea::placeholder{ color:var(--muted); }
+/* --- Lettore PDF: piano scuro + pagine in risalto --- */
+#flip-viewport{
+    background-color:var(--surface);
+    border:1px solid var(--border);
+    box-shadow:inset 0 2px 6px rgba(0,0,0,0.45);
+}
+#flipbook .stf__item{
+    box-shadow:0 0 0 1px rgba(0,0,0,0.35),
+               0 8px 24px rgba(0,0,0,0.55);
+}
+/* --- Stati HOVER chiari → scuri (righe tabella, tab filtro, ecc.) --- */
+.hover\:bg-gray-50:hover{ background-color:var(--hover); }
+.hover\:bg-gray-100:hover{ background-color:var(--hover); }
+.hover\:bg-white:hover{ background-color:var(--hover); }
+
+/* Testo secondario delle tabelle: era rimasto grigio scuro su fondo scuro,
+   poco leggibile. Lo porto al grigio tenue del tema. */
+.text-gray-600{ color:var(--muted); }

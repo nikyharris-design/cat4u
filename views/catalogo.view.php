@@ -20,6 +20,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($catalogo['titolo']) ?> — <?= htmlspecialchars($catalogo['nome_azienda']) ?></title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
+
+    <!-- Rifiniture del lettore. Inline <style> è permesso dalla CSP
+         (style-src 'unsafe-inline') e non richiede ricompilare Tailwind. -->
+    
 </head>
 <body class="bg-gray-100 min-h-screen">
 
@@ -48,19 +52,45 @@
 
         <!-- Contenitore del flipbook. Popolato da JS. Resta vuoto se JS è
              disattivato: in quel caso si mostra il <noscript> con l'iframe. -->
+        <!-- Contenitore del flipbook. Popolato da JS. Resta vuoto se JS è
+             disattivato: in quel caso si mostra il <noscript> con l'iframe. -->
         <div id="flip-wrap" class="select-none">
             <div id="flip-loading" class="text-center text-gray-400 text-sm py-12">
                 Caricamento catalogo…
             </div>
-            <div id="flipbook" style="display:none;"></div>
 
-            <!-- Controlli di navigazione. -->
-            <div id="flip-controls" class="flex items-center justify-center gap-4 mt-4" style="display:none;">
+          <!-- Viewport scrollabile + "piano" di lettura: un fondo appena più
+                 scuro delle pagine bianche, con bordo e ombra interna, così i
+                 margini del flipbook si distinguono chiaramente. -->
+            <div id="flip-viewport"
+                 style="overflow:auto; border-radius:0.75rem; padding:1.5rem;">
+                <div id="flipbook" style="display:none;"></div>
+            </div>
+
+            <!-- Controlli: navigazione + zoom. flex-wrap inline così su mobile
+                 i bottoni vanno a capo invece di sforare. -->
+            <div id="flip-controls" class="flex items-center justify-center gap-4 mt-4"
+                 style="display:none; flex-wrap:wrap;">
                 <button id="flip-prev" type="button"
                         class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
                     ← Indietro
                 </button>
+
                 <span id="flip-page" class="text-sm text-gray-500"></span>
+
+                <!-- Gruppo zoom. Riuso le classi dei bottoni "grigi" già presenti
+                     nel CSS compilato (niente ricompilazione Tailwind). Il
+                     min-width inline li tiene compatti. -->
+                <button id="flip-zoom-out" type="button"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition"
+                        style="min-width:2.5rem;" title="Riduci">−</button>
+                <button id="flip-zoom-reset" type="button"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition"
+                        style="min-width:3.5rem;" title="Ripristina zoom">100%</button>
+                <button id="flip-zoom-in" type="button"
+                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition"
+                        style="min-width:2.5rem;" title="Ingrandisci">+</button>
+
                 <button id="flip-next" type="button"
                         class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
                     Avanti →

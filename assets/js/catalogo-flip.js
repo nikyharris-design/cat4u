@@ -20,6 +20,43 @@ const btnPrev  = document.getElementById('flip-prev');
 const btnNext  = document.getElementById('flip-next');
 const lblPage  = document.getElementById('flip-page');
 
+// Elementi dello zoom.
+const viewport     = document.getElementById('flip-viewport');
+const btnZoomIn    = document.getElementById('flip-zoom-in');
+const btnZoomOut   = document.getElementById('flip-zoom-out');
+const btnZoomReset = document.getElementById('flip-zoom-reset');
+
+// --------------------------------------------------------------------------
+// ZOOM
+// Applichiamo uno scale CSS al flipbook (#flipbook = wrapper esterno di
+// StPageFlip). Non ri-renderizziamo il PDF: le pagine sono già immagini nitide,
+// quindi ingrandirle resta leggibile. Il viewport con overflow:auto permette di
+// scorrere quando il libro esce dai bordi.
+const ZOOM_MIN  = 1;     // 1 = pagina "a misura": non rimpiccioliamo sotto
+const ZOOM_MAX  = 3;     // limite massimo
+const ZOOM_STEP = 0.25;  // incremento per click
+let zoom = 1;
+
+function applyZoom() {
+    elBook.style.transformOrigin = 'top center';
+    elBook.style.transform = 'scale(' + zoom + ')';
+    btnZoomReset.textContent = Math.round(zoom * 100) + '%';
+
+    // Ai limiti disabilitiamo il bottone. L'opacità la gestiamo inline (non con
+    // "disabled:opacity-*"): quella classe Tailwind potrebbe non essere nel CSS
+    // compilato, l'inline invece è sempre affidabile.
+    const atMin = (zoom <= ZOOM_MIN);
+    const atMax = (zoom >= ZOOM_MAX);
+    btnZoomOut.disabled = atMin;
+    btnZoomIn.disabled  = atMax;
+    btnZoomOut.style.opacity = atMin ? '0.4' : '1';
+    btnZoomIn.style.opacity  = atMax ? '0.4' : '1';
+}
+
+function zoomIn()    { zoom = Math.min(ZOOM_MAX, zoom + ZOOM_STEP); applyZoom(); }
+function zoomOut()   { zoom = Math.max(ZOOM_MIN, zoom - ZOOM_STEP); applyZoom(); }
+function zoomReset() { zoom = 1; applyZoom(); }
+
 // Se qualcosa va storto, mostriamo il PDF nell'iframe (fallback robusto).
 function fallbackIframe() {
     wrap.innerHTML =
@@ -32,15 +69,23 @@ async function renderPages() {
     const pdf = await pdfjsLib.getDocument({ url: PDF_URL }).promise;
     const images = [];
 
-   // Scala di rendering ADATTIVA: puntiamo a ~1400px di larghezza per pagina,
-    // così il testo resta nitido anche su schermi ad alta densità (retina).
-    // Il PDF potrebbe già essere grande o piccolo, quindi calcoliamo la scala
-    // dalla larghezza reale della pagina. Pavimento a 1.5 (mai peggio di prima)
-    // e tetto a 3 (per non saturare la memoria sui cataloghi lunghi).
+   // Scala di rendering ADATTIVA e sensibile alla DENSITÀ dello schermo.
+    // Su display retina/HiDPI un'immagine da 1400px viene comunque rimpicciolita
+    // dal browser e appare morbida: qui moltiplichiamo per il devicePixelRatio
+    // (limitato a 2 per non esagerare su alcuni telefoni). Un target più alto
+    // resta nitido anche con lo zoom fino a ~2x.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
     const primaPagina   = await pdf.getPage(1);
     const larghezzaBase = primaPagina.getViewport({ scale: 1 }).width;
-    const TARGET_W = 1400;
-    const SCALE = Math.min(Math.max(TARGET_W / larghezzaBase, 1.5), 3);
+
+    // Larghezza REALE desiderata per pagina, in pixel fisici. Più alta = più
+    // nitido ma più pesante in memoria: se hai cataloghi molto lunghi e noti
+    // rallentamenti o crash su mobile, abbassa questo valore (es. 1600).
+    const TARGET_W = 2200 * dpr;
+
+    // Clamp: mai sotto 2 (nitido di base), mai sopra 4 (protezione memoria).
+    const SCALE = Math.min(Math.max(TARGET_W / larghezzaBase, 2), 4);
 
     for (let n = 1; n <= pdf.numPages; n++) {
         const page = await pdf.getPage(n);
@@ -95,6 +140,12 @@ function initFlip(images) {
     btnPrev.addEventListener('click', () => pageFlip.flipPrev());
     btnNext.addEventListener('click', () => pageFlip.flipNext());
     pageFlip.on('flip', refreshLabel);
+
+    // Zoom
+    btnZoomIn.addEventListener('click', zoomIn);
+    btnZoomOut.addEventListener('click', zoomOut);
+    btnZoomReset.addEventListener('click', zoomReset);
+    applyZoom(); // stato iniziale: 100%, bottone "−" disabilitato
 }
 
 (async function () {
