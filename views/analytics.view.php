@@ -24,7 +24,7 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
     <?php require __DIR__ . '/../partials/header.php'; ?>
-    <main class="max-w-5xl mx-auto py-8 px-4">
+    <main class="max-w-5xl mx-auto py-8 px-4 analytics">
 
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-gray-800">Analytics</h2>
@@ -87,8 +87,8 @@
                 <!-- Reset: appare solo se almeno un filtro è attivo. -->
                 <?php if ($filtro_azienda || $filtro_genere || $filtro_catalogo): ?>
                 <a href="<?= BASE_URL ?>dashboard/analytics.php"
-                   style="display:inline-flex; align-items:center; align-self:center; height:38px; padding:0 1rem; background:#e5e7eb; color:#374151; border-radius:0.5rem; font-size:0.875rem; font-weight:500; text-decoration:none; white-space:nowrap;"
-                   data-base-bg="#e5e7eb" data-hover-bg="#d1d5db">
+                   style="display:inline-flex; align-items:center; align-self:center; height:38px; padding:0 1rem; background:#1f222c; color:#e7e9ef; border:1px solid #2b2f3a; border-radius:0.5rem; font-size:0.875rem; font-weight:500; text-decoration:none; white-space:nowrap;"
+                   data-base-bg="#1f222c" data-hover-bg="#282c38">
                     Reset filtri
                 </a>
                 <?php endif; ?>
