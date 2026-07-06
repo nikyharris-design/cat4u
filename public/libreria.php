@@ -23,6 +23,7 @@ require_once __DIR__ . '/../config/bootstrap.php';
 // Slug azienda dalla query string. Senza, non sappiamo cosa mostrare → 404.
 $slug = trim($_GET['a'] ?? '');
 
+
 if (empty($slug)) {
     not_found();
 }

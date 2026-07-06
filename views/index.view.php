@@ -52,6 +52,14 @@
                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
                     Gestione Generi
                 </a>
+                <!-- Vetrina pubblica: ciò che vede un cliente dopo aver scansionato
+                     il QR. Mostrato solo se abbiamo lo slug dell'azienda. -->
+                <?php if (!empty($azienda_slug)): ?>
+                <a href="<?= BASE_URL ?>public/libreria.php?a=<?= htmlspecialchars($azienda_slug) ?>"
+                   class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    Vedi libreria pubblica
+                </a>
+                <?php endif; ?>
                 <?php endif; ?>
 
                 <!-- Analytics: solo superadmin e admin. -->

@@ -24,8 +24,19 @@ $user = current_user();
 // così possiamo usare un semplice if ($azienda_id) per distinguere i casi.
 $azienda_id = (int)$user['azienda_id'];
 
+// Slug dell'azienda: serve alla vista per il link "Vedi libreria pubblica".
+// Resta null per il superadmin (nessuna azienda propria): in quel caso la
+// vista non mostra il link.
+$azienda_slug = null;
+
 if ($azienda_id) {
     // ---- RAMO "UTENTE DI UN'AZIENDA": conteggi filtrati per azienda_id ----
+
+    // Slug dell'azienda, per costruire l'URL della vetrina pubblica.
+    $stmt_slug = $pdo->prepare("SELECT slug FROM aziende WHERE id = ?");
+    $stmt_slug->execute([$azienda_id]);
+    $azienda_slug = $stmt_slug->fetchColumn() ?: null;
+
     $tot_cataloghi = $pdo->prepare("SELECT COUNT(*) FROM cataloghi WHERE azienda_id = ?");
     $tot_cataloghi->execute([$azienda_id]);
     $tot_cataloghi = (int)$tot_cataloghi->fetchColumn();

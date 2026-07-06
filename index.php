@@ -87,7 +87,10 @@ $router->get('/([\w-]+)/([\w-]+)', function ($azienda, $secondo) use ($pdo) {
 });
 
 // /azienda → libreria pubblica.
-$router->get('/([\w-]+)', function ($azienda) {
+$router->get('/([\w-]+)', function ($azienda) use ($pdo) {
+    // use ($pdo): la rotta a due segmenti sopra importa già $pdo nella closure;
+    // questa a un segmento se n'era dimenticata. Senza, libreria.php incluso qui
+    // dentro gira nello scope della funzione e non vede $pdo → null->prepare().
     $_GET['a'] = $azienda;
     require __DIR__ . '/public/libreria.php';
     exit();
@@ -105,5 +108,11 @@ $router->set404(function () {
 // --------------------------------------------------------------------------
 $route = '/' . trim($_GET['_route'] ?? '', '/');
 $_SERVER['REQUEST_URI'] = $route;
-
+// Neutralizza l'auto-rilevamento del base path di bramus/router.
+// Di default bramus deduce il base path da SCRIPT_NAME (/cat4u/index.php → /cat4u)
+// e lo rimuove dalla rotta, "mangiando" i primi caratteri dello slug
+// (es. /cabaddu-srl → u-srl). Noi passiamo già in REQUEST_URI una rotta pulita
+// (vedi riga sopra), quindi forziamo SCRIPT_NAME a /index.php: così il base path
+// calcolato è vuoto e la rotta viene usata così com'è.
+$_SERVER['SCRIPT_NAME'] = '/index.php';
 $router->run();

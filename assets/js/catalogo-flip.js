@@ -32,9 +32,15 @@ async function renderPages() {
     const pdf = await pdfjsLib.getDocument({ url: PDF_URL }).promise;
     const images = [];
 
-    // Scala di rendering: più alta = più nitido ma più pesante. 1.5 è un buon
-    // compromesso per la lettura a schermo.
-    const SCALE = 1.5;
+   // Scala di rendering ADATTIVA: puntiamo a ~1400px di larghezza per pagina,
+    // così il testo resta nitido anche su schermi ad alta densità (retina).
+    // Il PDF potrebbe già essere grande o piccolo, quindi calcoliamo la scala
+    // dalla larghezza reale della pagina. Pavimento a 1.5 (mai peggio di prima)
+    // e tetto a 3 (per non saturare la memoria sui cataloghi lunghi).
+    const primaPagina   = await pdf.getPage(1);
+    const larghezzaBase = primaPagina.getViewport({ scale: 1 }).width;
+    const TARGET_W = 1400;
+    const SCALE = Math.min(Math.max(TARGET_W / larghezzaBase, 1.5), 3);
 
     for (let n = 1; n <= pdf.numPages; n++) {
         const page = await pdf.getPage(n);
