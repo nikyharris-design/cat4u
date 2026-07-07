@@ -87,6 +87,7 @@ $router->get('/([\w-]+)/([\w-]+)', function ($azienda, $secondo) use ($pdo) {
 });
 
 // /azienda → libreria pubblica.
+// @phpstan-ignore closure.unusedUse
 $router->get('/([\w-]+)', function ($azienda) use ($pdo) {
     // use ($pdo): la rotta a due segmenti sopra importa già $pdo nella closure;
     // questa a un segmento se n'era dimenticata. Senza, libreria.php incluso qui
@@ -95,6 +96,9 @@ $router->get('/([\w-]+)', function ($azienda) use ($pdo) {
     require __DIR__ . '/public/libreria.php';
     exit();
 });
+
+// --------------------------------------------------------------------------
+// 404 — rotte non riconosciute.
 
 // --------------------------------------------------------------------------
 // 404 — rotte non riconosciute.
