@@ -1,8 +1,7 @@
 // assets/js/catalogo-flip.js
-// Renderizza il PDF con PDF.js direttamente su <canvas> ad alta risoluzione e
-// li sfoglia con StPageFlip (modalità HTML: loadFromHTML). Disegnare su canvas
-// ad alta densità mantiene testo e immagini nitidi anche in zoom.
-// In caso di errore, ricade sull'iframe del PDF (come il <noscript>).
+// PDF.js disegna le pagine su <canvas> ad alta risoluzione. Desktop/tablet:
+// flipbook (StPageFlip, loadFromHTML). Telefono: scorrimento verticale.
+// In caso di errore, fallback all'iframe del PDF.
 
 import * as pdfjsLib from './pdf.mjs';
 
@@ -21,63 +20,76 @@ const btnPrev  = document.getElementById('flip-prev');
 const btnNext  = document.getElementById('flip-next');
 const lblPage  = document.getElementById('flip-page');
 
-// Elementi dello zoom.
 const viewport     = document.getElementById('flip-viewport');
 const btnZoomIn    = document.getElementById('flip-zoom-in');
 const btnZoomOut   = document.getElementById('flip-zoom-out');
 const btnZoomReset = document.getElementById('flip-zoom-reset');
 
 // --------------------------------------------------------------------------
-// ZOOM (invariato: transform scale sul libro + scroll nel viewport)
+// ZOOM — flip: transform scale sul libro. scroll: larghezza pagine > 100%.
 // --------------------------------------------------------------------------
 const ZOOM_MIN  = 1;
 const ZOOM_MAX  = 3;
 const ZOOM_STEP = 0.25;
 let zoom = 1;
+let mode = 'flip';   // 'flip' (desktop/tablet) | 'scroll' (telefono)
 
 function applyZoom() {
-    elBook.style.transformOrigin = 'top left';
-    elBook.style.transform = 'scale(' + zoom + ')';
+    if (mode === 'scroll') {
+        // Le pagine si allargano oltre il 100%; il viewport scorre in
+        // orizzontale. Lo scroll verticale resta quello nativo del telefono.
+        elBook.style.width = (100 * zoom) + '%';
+   } else {
+        elBook.style.transformOrigin = 'top left';
+        elBook.style.transform = 'scale(' + zoom + ')';
+    }
+    // Manina "grab" quando si può trascinare (zoom attivo), in ENTRAMBE le modalità.
+    viewport.style.cursor = (zoom > 1) ? 'grab' : '';
     btnZoomReset.textContent = Math.round(zoom * 100) + '%';
     const atMin = (zoom <= ZOOM_MIN);
     const atMax = (zoom >= ZOOM_MAX);
     btnZoomOut.disabled = atMin;
     btnZoomIn.disabled  = atMax;
-   btnZoomOut.style.opacity = atMin ? '0.4' : '1';
+    btnZoomOut.style.opacity = atMin ? '0.4' : '1';
     btnZoomIn.style.opacity  = atMax ? '0.4' : '1';
-    viewport.style.cursor = (zoom > 1) ? 'grab' : '';
 }
 function zoomIn()    { zoom = Math.min(ZOOM_MAX, zoom + ZOOM_STEP); applyZoom(); }
 function zoomOut()   { zoom = Math.max(ZOOM_MIN, zoom - ZOOM_STEP); applyZoom(); }
 function zoomReset() { zoom = 1; applyZoom(); }
 
 // --------------------------------------------------------------------------
-// PAN — quando lo zoom è attivo (>100%), trascinare col mouse SPOSTA il libro
-// invece di sfogliarlo. Intercettiamo il mousedown in fase di CATTURA sul
-// viewport e fermiamo la propagazione, così StPageFlip non avvia lo sfoglio;
-// poi muoviamo lo scroll del viewport seguendo il trascinamento.
-// A 100% non tocchiamo nulla: lo sfoglio normale resta invariato.
+// PAN col mouse (solo flipbook, zoom > 1): trascinare sposta il libro.
 // --------------------------------------------------------------------------
 let isPanning = false;
 let panStartX = 0, panStartY = 0, panLeft0 = 0, panTop0 = 0;
 
+// Su telefono vero (touch) lasciamo lo scorrimento nativo del dito e NON
+// attiviamo il pan col mouse, per evitare movimenti doppi.
+let touchActive = false;
+window.addEventListener('touchstart', function () { touchActive = true; }, { passive: true });
+
 viewport.addEventListener('mousedown', function (e) {
-    if (zoom <= 1 || e.button !== 0) return;   // solo zoomato, solo tasto sinistro
+    if (touchActive || zoom <= 1 || e.button !== 0) return;   // pan col mouse, solo zoomato
     e.preventDefault();
-    e.stopPropagation();                        // impedisce a StPageFlip di sfogliare
+    if (mode !== 'scroll') e.stopPropagation();               // in flip: impedisce lo sfoglio
     isPanning = true;
     panStartX = e.clientX;
     panStartY = e.clientY;
     panLeft0  = viewport.scrollLeft;
-    panTop0   = viewport.scrollTop;
+    panTop0   = (mode === 'scroll') ? window.scrollY : viewport.scrollTop;
     viewport.style.cursor = 'grabbing';
     document.body.style.userSelect = 'none';
-}, true);   // true = fase di CATTURA (scatta prima di StPageFlip)
+}, true);
 
 window.addEventListener('mousemove', function (e) {
     if (!isPanning) return;
     viewport.scrollLeft = panLeft0 - (e.clientX - panStartX);
-    viewport.scrollTop  = panTop0  - (e.clientY - panStartY);
+    if (mode === 'scroll') {
+        // In scorrimento il movimento verticale è a livello di pagina (window).
+        window.scrollTo(0, panTop0 - (e.clientY - panStartY));
+    } else {
+        viewport.scrollTop = panTop0 - (e.clientY - panStartY);
+    }
 });
 
 window.addEventListener('mouseup', function () {
@@ -87,12 +99,29 @@ window.addEventListener('mouseup', function () {
     document.body.style.userSelect = '';
 });
 
-// Mentre siamo zoomati, un click sul libro non deve sfogliare (solo pan).
 viewport.addEventListener('click', function (e) {
-    if (zoom > 1) e.stopPropagation();
+    if (mode !== 'scroll' && zoom > 1) e.stopPropagation();
 }, true);
 
-// Se qualcosa va storto, mostriamo il PDF nell'iframe (fallback robusto).
+// --------------------------------------------------------------------------
+// REATTIVITÀ: la modalità è scelta al caricamento. Se attraversiamo i 768px
+// (rotazione telefono, resize, devtools) ricarichiamo nella modalità giusta.
+// Debounce per non ricaricare a raffica durante il trascinamento del bordo.
+// --------------------------------------------------------------------------
+let wasMobile = window.innerWidth < 768;
+let resizeTimer;
+window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+        const nowMobile = window.innerWidth < 768;
+        if (nowMobile !== wasMobile) {
+            wasMobile = nowMobile;
+            location.reload();
+        }
+    }, 250);
+});
+
+// Fallback robusto.
 function fallbackIframe() {
     wrap.innerHTML =
         '<iframe src="' + PDF_URL + '" width="100%" height="800px" ' +
@@ -100,25 +129,19 @@ function fallbackIframe() {
 }
 
 // --------------------------------------------------------------------------
-// RENDER: ogni pagina PDF è disegnata su un <canvas> ad alta risoluzione,
-// racchiuso in un <div class="page">. Restituiamo gli elementi pagina (non
-// immagini): StPageFlip li usa in modalità HTML con loadFromHTML.
+// RENDER: ogni pagina su <canvas> ad alta risoluzione dentro un <div .page>.
 // --------------------------------------------------------------------------
 async function renderPages() {
     const pdf = await pdfjsLib.getDocument({ url: PDF_URL }).promise;
 
-    // Boost di risoluzione: densità schermo (devicePixelRatio, max 2) × fattore
-    // extra. Il canvas ha PIÙ pixel fisici di quelli visualizzati → testo
-    // nitido anche allo zoom massimo.
     const RENDER_BOOST = 2;
     const dpr   = Math.min(window.devicePixelRatio || 1, 2);
-    const MAX_W = 2600; // tetto pixel fisici per pagina (memoria sicura)
+    const MAX_W = 2600;
 
     const pages = [];
     for (let n = 1; n <= pdf.numPages; n++) {
         const page = await pdf.getPage(n);
 
-        // Scala dpr × boost, ridotta se supererebbe il tetto MAX_W.
         let scale = dpr * RENDER_BOOST;
         const baseW = page.getViewport({ scale: 1 }).width;
         if (baseW * scale > MAX_W) scale = MAX_W / baseW;
@@ -126,9 +149,9 @@ async function renderPages() {
         const vp = page.getViewport({ scale });
 
         const canvas = document.createElement('canvas');
-        canvas.width  = vp.width;    // risoluzione INTERNA (alta)
+        canvas.width  = vp.width;
         canvas.height = vp.height;
-        canvas.style.width   = '100%';   // dimensione VISIVA (scalata dal box pagina)
+        canvas.style.width   = '100%';
         canvas.style.height  = '100%';
         canvas.style.display = 'block';
 
@@ -146,16 +169,19 @@ async function renderPages() {
     return pages;
 }
 
+// --------------------------------------------------------------------------
+// FLIP (desktop/tablet)
+// --------------------------------------------------------------------------
 function initFlip(pages) {
+    mode = 'flip';
     const isMobile = window.innerWidth < 768;
     const W = isMobile ? 380 : 500;
     const H = Math.round(W * 1.414);
 
-    // Contenitore visibile PRIMA di init, così 'stretch' misura la larghezza.
-    loading.style.display = 'none';
-    elBook.style.display  = 'block';
+    loading.style.display  = 'none';
+    elBook.style.display   = 'block';
+    controls.style.display = 'flex';
 
-    // Le pagine devono stare nel DOM come figli del contenitore.
     pages.forEach(p => elBook.appendChild(p));
 
     const pageFlip = new St.PageFlip(elBook, {
@@ -172,10 +198,7 @@ function initFlip(pages) {
         usePortrait: isMobile,
     });
 
-    // Modalità HTML: StPageFlip usa i nostri <div class="page"> con i canvas.
     pageFlip.loadFromHTML(pages);
-
-    controls.style.display = 'flex';
 
     const total = pages.length;
     function refreshLabel() {
@@ -186,6 +209,49 @@ function initFlip(pages) {
     btnPrev.addEventListener('click', () => pageFlip.flipPrev());
     btnNext.addEventListener('click', () => pageFlip.flipNext());
     pageFlip.on('flip', refreshLabel);
+
+    btnZoomIn.addEventListener('click', zoomIn);
+    btnZoomOut.addEventListener('click', zoomOut);
+    btnZoomReset.addEventListener('click', zoomReset);
+    applyZoom();
+}
+
+// --------------------------------------------------------------------------
+// SCROLL (telefono): pagine impilate verticalmente. Mostriamo solo lo zoom.
+// --------------------------------------------------------------------------
+function initScroll(pages) {
+    mode = 'scroll';
+    loading.style.display  = 'none';
+
+    // Controlli: solo zoom (Indietro/Avanti e numero pagina non servono).
+    controls.style.display = 'flex';
+    if (btnPrev.parentElement) btnPrev.parentElement.style.display = 'none';
+    lblPage.style.display = 'none';
+
+    elBook.style.display   = 'block';
+    elBook.style.transform = 'none';
+    elBook.classList.add('flip-scroll');
+
+    // Pannello zoom flottante + pulsante per aprirlo/chiuderlo (solo scroll).
+    controls.classList.add('flip-menu-floating');
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'flip-menu-toggle';
+    toggle.setAttribute('aria-label', 'Mostra/nascondi zoom');
+    toggle.textContent = '🔍';
+    toggle.addEventListener('click', function () {
+        controls.classList.toggle('is-open');
+        toggle.textContent = controls.classList.contains('is-open') ? '✕' : '🔍';
+    });
+    controls.parentElement.appendChild(toggle);
+
+    pages.forEach(p => {
+        p.style.height = 'auto';
+        const c = p.querySelector('canvas');
+        if (c) c.style.height = 'auto';
+        elBook.appendChild(p);
+    });
 
     btnZoomIn.addEventListener('click', zoomIn);
     btnZoomOut.addEventListener('click', zoomOut);
@@ -204,7 +270,11 @@ function initFlip(pages) {
             fallbackIframe();
             return;
         }
-        initFlip(pages);
+        if (window.innerWidth < 768) {
+            initScroll(pages);
+        } else {
+            initFlip(pages);
+        }
     } catch (e) {
         console.error('Flipbook non disponibile:', e);
         fallbackIframe();

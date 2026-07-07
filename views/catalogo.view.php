@@ -69,34 +69,25 @@
 
             <!-- Controlli: navigazione + zoom. flex-wrap inline così su mobile
                  i bottoni vanno a capo invece di sforare. -->
-            <div id="flip-controls" class="flex items-center justify-center gap-4 mt-4"
-                 style="display:none; flex-wrap:wrap;">
-                <button id="flip-prev" type="button"
-                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    ← Indietro
-                </button>
+           <!-- Menu controlli lettore. Su PC/tablet diventa una barra verticale
+                 a sinistra (vedi input.css); su mobile va sotto, in orizzontale. -->
+            <div id="flip-controls" class="flip-menu" style="display:none;">
 
-                <span id="flip-page" class="text-sm text-gray-500"></span>
+                <span id="flip-page" class="flip-menu-status"></span>
 
-                <!-- Gruppo zoom. Riuso le classi dei bottoni "grigi" già presenti
-                     nel CSS compilato (niente ricompilazione Tailwind). Il
-                     min-width inline li tiene compatti. -->
-                <button id="flip-zoom-out" type="button"
-                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition"
-                        style="min-width:2.5rem;" title="Riduci">−</button>
-                <button id="flip-zoom-reset" type="button"
-                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition"
-                        style="min-width:3.5rem;" title="Ripristina zoom">100%</button>
-                <button id="flip-zoom-in" type="button"
-                        class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition"
-                        style="min-width:2.5rem;" title="Ingrandisci">+</button>
+                <div class="flip-menu-group">
+                    <button id="flip-prev" type="button" class="flip-btn">← Indietro</button>
+                    <button id="flip-next" type="button" class="flip-btn flip-btn-primary">Avanti →</button>
+                </div>
 
-                <button id="flip-next" type="button"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                    Avanti →
-                </button>
+                <div class="flip-menu-group flip-zoom">
+                    <button id="flip-zoom-out"   type="button" class="flip-btn flip-btn-icon" title="Riduci">−</button>
+                    <button id="flip-zoom-reset" type="button" class="flip-btn" title="Ripristina zoom">100%</button>
+                    <button id="flip-zoom-in"    type="button" class="flip-btn flip-btn-icon" title="Ingrandisci">+</button>
+                </div>
+
             </div>
-        </div>
+        
 
         <!-- FALLBACK: senza JS, il PDF viene mostrato nell'iframe. -->
         <noscript>
