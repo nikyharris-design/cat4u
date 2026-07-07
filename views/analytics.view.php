@@ -150,7 +150,12 @@
 
         </div>
 
-        <!-- ===================== DETTAGLIO PER CATALOGO ===================== -->
+       <!-- ===================== DETTAGLIO PER CATALOGO ===================== -->
+        <!-- Le card per-catalogo appaiono solo dopo aver scelto un filtro; all'apertura
+             restano visibili solo i totali e l'andamento a 30 giorni. Per l'admin
+             $filtro_azienda è sempre la sua azienda (non una scelta), quindi non conta. -->
+        <?php $filtri_attivi = $filtro_genere || $filtro_catalogo || ($is_superadmin && $filtro_azienda); ?>
+        <?php if ($filtri_attivi): ?>
         <div class="mb-6">
             <h3 class="text-sm font-semibold text-gray-500 uppercase mb-3">Scansioni per catalogo</h3>
 
@@ -220,8 +225,9 @@
                 </div>
                 <?php endforeach; ?>
             </div>
-            <?php endif; ?>
+           <?php endif; ?>
         </div>
+        <?php endif; ?>
 
         <!-- ================== ANDAMENTO ULTIMI 30 GIORNI ================== -->
         <div class="bg-white rounded-xl shadow p-5">
