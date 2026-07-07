@@ -48,7 +48,26 @@
             <p class="bg-green-100 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm"><?= $success ?></p>
         <?php endif; ?>
 
-        <?php if (empty($generi)): ?>
+        <?php if ($is_superadmin): ?>
+            <!-- FILTRO AZIENDA (solo superadmin): 0 = tutte. -->
+            <div class="bg-white rounded-xl shadow p-6 mb-6">
+                <form method="GET" action="">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Filtra per azienda</label>
+                    <div class="flex items-center gap-2">
+                        <select name="az" data-autosubmit
+                                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                            <option value="0">— Tutte le aziende —</option>
+                            <?php foreach ($aziende_list as $az): ?>
+                                <option value="<?= $az['id'] ?>" <?= $filtro_azienda === (int)$az['id'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($az['nome_azienda']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <noscript><button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm">Filtra</button></noscript>
+                    </div>
+                </form>
+            </div>
+        <?php elseif (empty($generi)): ?>
             <div class="bg-yellow-50 text-yellow-800 px-4 py-3 rounded-lg mb-6 text-sm">
                 Devi prima creare almeno un <a href="<?= BASE_URL ?>dashboard/generi.php" class="font-semibold underline">genere</a> prima di caricare cataloghi.
             </div>
@@ -134,17 +153,21 @@
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                     <tr>
+                        <?php if ($is_superadmin): ?><th class="px-4 py-3 text-left">Azienda</th><?php endif; ?>
                         <th class="px-4 py-3 text-left">Titolo</th>
                         <th class="px-4 py-3 text-left">Genere</th>
                         <th class="px-4 py-3 text-left">Scadenza</th>
                         <th class="px-4 py-3 text-left">Stato</th>
                         <th class="px-4 py-3 text-left">URL / QR</th>
-                        <th class="px-4 py-3 text-left">Azioni</th>
+                        <?php if (!$is_superadmin): ?><th class="px-4 py-3 text-left">Azioni</th><?php endif; ?>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     <?php foreach ($cataloghi as $c): ?>
                     <tr class="hover:bg-gray-50">
+                        <?php if ($is_superadmin): ?>
+                        <td class="px-4 py-3 font-semibold text-gray-700"><?= htmlspecialchars($c['nome_azienda']) ?></td>
+                        <?php endif; ?>
                         <td class="px-4 py-3 font-medium text-gray-800"><?= htmlspecialchars($c['titolo']) ?></td>
                         <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($c['nome_genere']) ?></td>
                         <td class="px-4 py-3 text-gray-600"><?= $c['data_scadenza'] ? date('d/m/Y', strtotime($c['data_scadenza'])) : '—' ?></td>
@@ -166,6 +189,7 @@
                                 ↓ QR
                             </a>
                         </td>
+                        <?php if (!$is_superadmin): ?>
                         <td class="px-4 py-3">
                             <div class="flex gap-2">
                                 <!-- MODIFICA: ricarica la pagina in modalità modifica. -->
@@ -193,6 +217,7 @@
                                 </form>
                             </div>
                         </td>
+                        <?php endif; ?>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

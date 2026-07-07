@@ -52,7 +52,41 @@ class CatalogoService
         $stmt->execute([$aziendaId]);
         return $stmt->fetchAll();
     }
+/**
+     * TUTTI i cataloghi di TUTTE le aziende (solo superadmin).
+     * Se $filtroAzienda > 0, limita a quella singola azienda.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function cataloghiTutti(int $filtroAzienda = 0): array
+    {
+        $sql = "SELECT c.*, g.nome_genere, a.slug AS azienda_slug, a.nome_azienda
+                FROM cataloghi c
+                JOIN generi g  ON g.id = c.genere_id
+                JOIN aziende a ON a.id = c.azienda_id";
+        $params = [];
+        if ($filtroAzienda > 0) {
+            $sql     .= " WHERE c.azienda_id = ?";
+            $params[] = $filtroAzienda;
+        }
+        $sql .= " ORDER BY a.nome_azienda ASC, c.created_at DESC";
 
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Elenco aziende (id + nome) per la tendina del filtro superadmin.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function aziende(): array
+    {
+        return $this->pdo
+            ->query("SELECT id, nome_azienda FROM aziende ORDER BY nome_azienda ASC")
+            ->fetchAll();
+    }
     /**
      * Un singolo catalogo dell'azienda (controllo di proprietà incluso), o null.
      * Se l'id esiste ma è di un'altra azienda, torna comunque null: l'utente

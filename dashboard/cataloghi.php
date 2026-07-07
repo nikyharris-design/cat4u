@@ -21,11 +21,12 @@ use App\Services\CatalogoService;
 use App\Exceptions\ValidationException;
 use App\Exceptions\NotFoundException;
 
-require_role('admin', 'user');
+require_role('superadmin', 'admin', 'user');
 require_password_changed();
 
 $user       = current_user();
 $azienda_id = (int)$user['azienda_id'];
+$is_superadmin = $user['role'] === 'superadmin';
 
 // Il service riceve $pdo (dal bootstrap) e il percorso assoluto di uploads/.
 $service = new CatalogoService($pdo, __DIR__ . '/../uploads');
@@ -97,20 +98,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 // --------------------------------------------------------------------------
 // DATI PER LA VISTA
 // --------------------------------------------------------------------------
-$generi    = $service->generi($azienda_id);
-$cataloghi = $service->cataloghi($azienda_id);
+if ($is_superadmin) {
+    // Superadmin: TUTTI i cataloghi, con filtro opzionale per azienda (0 = tutte).
+    $filtro_azienda = (int)($_GET['az'] ?? 0);
+    $aziende_list   = $service->aziende();
+    $cataloghi      = $service->cataloghiTutti($filtro_azienda);
 
-// ?modifica=ID → carica il catalogo da precompilare (null se assente o non tuo).
-$modifica = isset($_GET['modifica'])
-    ? $service->trova((int)$_GET['modifica'], $azienda_id)
-    : null;
+    // Il superadmin non carica/modifica da qui: form disattivato.
+    $generi         = [];
+    $modifica       = null;
+    $scadenza_value = '';
+} else {
+    $generi    = $service->generi($azienda_id);
+    $cataloghi = $service->cataloghi($azienda_id);
 
-// Valore data scadenza per il form (YYYY-MM-DD per <input type=date>).
-$scadenza_value = '';
-if ($modifica && !empty($modifica['data_scadenza'])) {
-    $scadenza_value = date('Y-m-d', strtotime((string)$modifica['data_scadenza']));
-} elseif (!empty($_POST['data_scadenza'])) {
-    $scadenza_value = (string)$_POST['data_scadenza'];
+    $modifica = isset($_GET['modifica'])
+        ? $service->trova((int)$_GET['modifica'], $azienda_id)
+        : null;
+
+    $scadenza_value = '';
+    if ($modifica && !empty($modifica['data_scadenza'])) {
+        $scadenza_value = date('Y-m-d', strtotime((string)$modifica['data_scadenza']));
+    } elseif (!empty($_POST['data_scadenza'])) {
+        $scadenza_value = (string)$_POST['data_scadenza'];
+    }
 }
 
 // --------------------------------------------------------------------------
