@@ -20,22 +20,44 @@
 
 require_once __DIR__ . '/../config/bootstrap.php';
 
-// Slug azienda dalla query string. Senza, non sappiamo cosa mostrare → 404.
+// Chi guarda: se loggato recuperiamo il ruolo. Il selettore-azienda è riservato
+// al superadmin; per i visitatori pubblici la pagina resta identica a prima.
+$viewer        = !empty($_SESSION['autorizzato']) ? current_user() : null;
+$is_superadmin = !empty($viewer) && ($viewer['role'] ?? '') === 'superadmin';
+
+// Elenco aziende per la tendina di anteprima (vuoto se non sei superadmin).
+$aziende_list = $is_superadmin
+    ? $pdo->query("SELECT id, nome_azienda, slug FROM aziende ORDER BY nome_azienda ASC")->fetchAll()
+    : [];
+
+// Slug azienda dalla query string.
 $slug = trim($_GET['a'] ?? '');
 
-
 if (empty($slug)) {
-    not_found();
+    // Visitatore pubblico senza azienda → 404 come prima.
+    // Superadmin senza azienda scelta → nessun 404: mostriamo la tendina.
+    if (!$is_superadmin) {
+        not_found();
+    }
+    $azienda = null;
+} else {
+    $stmt = $pdo->prepare("SELECT * FROM aziende WHERE slug = ? LIMIT 1");
+    $stmt->execute([$slug]);
+    $azienda = $stmt->fetch() ?: null;
+
+    // Per il superadmin uno slug errato non è un vicolo cieco: torna alla tendina.
+    if (!$azienda && !$is_superadmin) {
+        not_found("L'azienda richiesta non esiste.");
+    }
 }
 
-// Recuperiamo l'azienda dallo slug. Se non esiste, 404.
-$stmt = $pdo->prepare("SELECT * FROM aziende WHERE slug = ? LIMIT 1");
-$stmt->execute([$slug]);
-$azienda = $stmt->fetch();
+// Default: se il superadmin non ha ancora scelto un'azienda, restano vuoti.
+$genere_slug   = '';
+$genere_attivo = null;
+$generi        = [];
+$cataloghi     = [];
 
-if (!$azienda) {
-    not_found("L'azienda richiesta non esiste.");
-}
+if ($azienda) {
 
 // --- FILTRO GENERE (opzionale) ---
 $genere_slug   = trim($_GET['g'] ?? '');
@@ -90,6 +112,8 @@ if ($genere_attivo) {
     $stmt->execute([$azienda['id']]);
 }
 $cataloghi = $stmt->fetchAll();
+
+} // fine if ($azienda)
 
 // --------------------------------------------------------------------------
 // PRESENTAZIONE: deleghiamo tutto l'HTML alla vista.

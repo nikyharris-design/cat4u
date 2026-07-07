@@ -34,18 +34,26 @@ if (!isset($user)) {
 
         <nav class="flex items-center gap-1 flex-1">
             <!-- "Cataloghi": visibile a tutti i ruoli autenticati. -->
-            <?php if ($user['role'] !== 'superadmin'): ?>
+            
 <a href="<?= BASE_URL ?>dashboard/cataloghi.php"
    class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
     Cataloghi
 </a>
-<?php endif; ?>
 
-            <!-- "Analytics": solo superadmin e admin. -->
+
+         <!-- "Analytics": solo superadmin e admin. -->
             <?php if (in_array($user['role'], ['superadmin', 'admin'])): ?>
 <a href="<?= BASE_URL ?>dashboard/analytics.php"
    class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
     Analytics
+</a>
+<?php endif; ?>
+
+            <!-- "Libreria": anteprima libreria pubblica, solo superadmin. -->
+            <?php if ($user['role'] === 'superadmin'): ?>
+<a href="<?= BASE_URL ?>public/libreria.php"
+   class="text-indigo-200 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded text-sm transition">
+    Libreria
 </a>
 <?php endif; ?>
 

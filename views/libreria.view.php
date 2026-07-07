@@ -16,7 +16,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($azienda['nome_azienda']) ?> — Cataloghi</title>
+    <title><?= $azienda ? htmlspecialchars($azienda['nome_azienda']) . ' — ' : '' ?>Cataloghi</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -31,7 +31,7 @@
          compare il link alla dashboard (invisibile ai visitatori pubblici). -->
     <header class="bg-indigo-600 text-white shadow">
         <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-            <span class="font-bold text-lg"><?= htmlspecialchars($azienda['nome_azienda']) ?></span>
+            <span class="font-bold text-lg"><?= $azienda ? htmlspecialchars($azienda['nome_azienda']) : 'Libreria pubblica' ?></span>
             <?php if (!empty($_SESSION['autorizzato'])): ?>
             <a href="<?= BASE_URL ?>dashboard/index.php"
                style="color:#c7d2fe;font-size:.875rem;text-decoration:none;"
@@ -45,7 +45,33 @@
 
    <main class="max-w-5xl mx-auto py-8 px-4">
         <h1 class="text-2xl font-bold text-gray-800 mb-2">Cataloghi</h1>
+        <?php if ($azienda): ?>
         <p class="text-gray-500 text-sm mb-6"><?= htmlspecialchars($azienda['nome_azienda']) ?></p>
+        <?php endif; ?>
+
+        <?php if ($is_superadmin): ?>
+        <!-- SELETTORE AZIENDA (solo superadmin loggato): anteprima della libreria
+             pubblica di qualsiasi azienda. Invisibile ai visitatori normali. -->
+        <div class="bg-white rounded-xl shadow p-4 mb-6">
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Anteprima libreria — scegli azienda</label>
+           <form method="GET" action="<?= BASE_URL ?>public/libreria.php" class="flex items-center gap-2">
+                <select name="a"
+                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <option value="">— Seleziona un'azienda —</option>
+                    <?php foreach ($aziende_list as $az): ?>
+                        <option value="<?= htmlspecialchars($az['slug']) ?>"
+                            <?= ($azienda && (int)$azienda['id'] === (int)$az['id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($az['nome_azienda']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                    Vai
+                </button>
+            </form>
+        </div>
+        <?php endif; ?>
 
         <!-- TAB DI FILTRO PER GENERE (solo se ci sono generi con cataloghi). -->
         <?php if (!empty($generi)): ?>
@@ -66,7 +92,9 @@
         <?php endif; ?>
 
         <!-- GRIGLIA DEI CATALOGHI (o messaggio se vuota). -->
-        <?php if (empty($cataloghi)): ?>
+       <?php if (!$azienda): ?>
+            <p class="text-gray-400 text-sm text-center py-12">Scegli un'azienda dal menu qui sopra per vederne la libreria.</p>
+        <?php elseif (empty($cataloghi)): ?>
             <p class="text-gray-400 text-sm text-center py-12">Nessun catalogo disponibile.</p>
         <?php else: ?>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
