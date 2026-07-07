@@ -1,7 +1,8 @@
 // assets/js/catalogo-flip.js
-// Renderizza il PDF in immagini con PDF.js e le sfoglia con StPageFlip.
-// In caso di qualsiasi errore, ricade sull'iframe del PDF (stesso fallback
-// del <noscript>), così l'utente vede comunque il catalogo.
+// Renderizza il PDF con PDF.js direttamente su <canvas> ad alta risoluzione e
+// li sfoglia con StPageFlip (modalità HTML: loadFromHTML). Disegnare su canvas
+// ad alta densità mantiene testo e immagini nitidi anche in zoom.
+// In caso di errore, ricade sull'iframe del PDF (come il <noscript>).
 
 import * as pdfjsLib from './pdf.mjs';
 
@@ -27,35 +28,69 @@ const btnZoomOut   = document.getElementById('flip-zoom-out');
 const btnZoomReset = document.getElementById('flip-zoom-reset');
 
 // --------------------------------------------------------------------------
-// ZOOM
-// Applichiamo uno scale CSS al flipbook (#flipbook = wrapper esterno di
-// StPageFlip). Non ri-renderizziamo il PDF: le pagine sono già immagini nitide,
-// quindi ingrandirle resta leggibile. Il viewport con overflow:auto permette di
-// scorrere quando il libro esce dai bordi.
-const ZOOM_MIN  = 1;     // 1 = pagina "a misura": non rimpiccioliamo sotto
-const ZOOM_MAX  = 3;     // limite massimo
-const ZOOM_STEP = 0.25;  // incremento per click
+// ZOOM (invariato: transform scale sul libro + scroll nel viewport)
+// --------------------------------------------------------------------------
+const ZOOM_MIN  = 1;
+const ZOOM_MAX  = 3;
+const ZOOM_STEP = 0.25;
 let zoom = 1;
 
 function applyZoom() {
-    elBook.style.transformOrigin = 'top center';
+    elBook.style.transformOrigin = 'top left';
     elBook.style.transform = 'scale(' + zoom + ')';
     btnZoomReset.textContent = Math.round(zoom * 100) + '%';
-
-    // Ai limiti disabilitiamo il bottone. L'opacità la gestiamo inline (non con
-    // "disabled:opacity-*"): quella classe Tailwind potrebbe non essere nel CSS
-    // compilato, l'inline invece è sempre affidabile.
     const atMin = (zoom <= ZOOM_MIN);
     const atMax = (zoom >= ZOOM_MAX);
     btnZoomOut.disabled = atMin;
     btnZoomIn.disabled  = atMax;
-    btnZoomOut.style.opacity = atMin ? '0.4' : '1';
+   btnZoomOut.style.opacity = atMin ? '0.4' : '1';
     btnZoomIn.style.opacity  = atMax ? '0.4' : '1';
+    viewport.style.cursor = (zoom > 1) ? 'grab' : '';
 }
-
 function zoomIn()    { zoom = Math.min(ZOOM_MAX, zoom + ZOOM_STEP); applyZoom(); }
 function zoomOut()   { zoom = Math.max(ZOOM_MIN, zoom - ZOOM_STEP); applyZoom(); }
 function zoomReset() { zoom = 1; applyZoom(); }
+
+// --------------------------------------------------------------------------
+// PAN — quando lo zoom è attivo (>100%), trascinare col mouse SPOSTA il libro
+// invece di sfogliarlo. Intercettiamo il mousedown in fase di CATTURA sul
+// viewport e fermiamo la propagazione, così StPageFlip non avvia lo sfoglio;
+// poi muoviamo lo scroll del viewport seguendo il trascinamento.
+// A 100% non tocchiamo nulla: lo sfoglio normale resta invariato.
+// --------------------------------------------------------------------------
+let isPanning = false;
+let panStartX = 0, panStartY = 0, panLeft0 = 0, panTop0 = 0;
+
+viewport.addEventListener('mousedown', function (e) {
+    if (zoom <= 1 || e.button !== 0) return;   // solo zoomato, solo tasto sinistro
+    e.preventDefault();
+    e.stopPropagation();                        // impedisce a StPageFlip di sfogliare
+    isPanning = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    panLeft0  = viewport.scrollLeft;
+    panTop0   = viewport.scrollTop;
+    viewport.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+}, true);   // true = fase di CATTURA (scatta prima di StPageFlip)
+
+window.addEventListener('mousemove', function (e) {
+    if (!isPanning) return;
+    viewport.scrollLeft = panLeft0 - (e.clientX - panStartX);
+    viewport.scrollTop  = panTop0  - (e.clientY - panStartY);
+});
+
+window.addEventListener('mouseup', function () {
+    if (!isPanning) return;
+    isPanning = false;
+    viewport.style.cursor = (zoom > 1) ? 'grab' : '';
+    document.body.style.userSelect = '';
+});
+
+// Mentre siamo zoomati, un click sul libro non deve sfogliare (solo pan).
+viewport.addEventListener('click', function (e) {
+    if (zoom > 1) e.stopPropagation();
+}, true);
 
 // Se qualcosa va storto, mostriamo il PDF nell'iframe (fallback robusto).
 function fallbackIframe() {
@@ -64,51 +99,64 @@ function fallbackIframe() {
         'class="rounded-xl shadow border-0" title="Catalogo"></iframe>';
 }
 
-// Rendering di tutte le pagine del PDF in dataURL PNG.
+// --------------------------------------------------------------------------
+// RENDER: ogni pagina PDF è disegnata su un <canvas> ad alta risoluzione,
+// racchiuso in un <div class="page">. Restituiamo gli elementi pagina (non
+// immagini): StPageFlip li usa in modalità HTML con loadFromHTML.
+// --------------------------------------------------------------------------
 async function renderPages() {
     const pdf = await pdfjsLib.getDocument({ url: PDF_URL }).promise;
-    const images = [];
 
-   // Scala di rendering ADATTIVA e sensibile alla DENSITÀ dello schermo.
-    // Su display retina/HiDPI un'immagine da 1400px viene comunque rimpicciolita
-    // dal browser e appare morbida: qui moltiplichiamo per il devicePixelRatio
-    // (limitato a 2 per non esagerare su alcuni telefoni). Un target più alto
-    // resta nitido anche con lo zoom fino a ~2x.
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Boost di risoluzione: densità schermo (devicePixelRatio, max 2) × fattore
+    // extra. Il canvas ha PIÙ pixel fisici di quelli visualizzati → testo
+    // nitido anche allo zoom massimo.
+    const RENDER_BOOST = 2;
+    const dpr   = Math.min(window.devicePixelRatio || 1, 2);
+    const MAX_W = 2600; // tetto pixel fisici per pagina (memoria sicura)
 
-    const primaPagina   = await pdf.getPage(1);
-    const larghezzaBase = primaPagina.getViewport({ scale: 1 }).width;
-
-    // Larghezza REALE desiderata per pagina, in pixel fisici. Più alta = più
-    // nitido ma più pesante in memoria: se hai cataloghi molto lunghi e noti
-    // rallentamenti o crash su mobile, abbassa questo valore (es. 1600).
-    const TARGET_W = 2200 * dpr;
-
-    // Clamp: mai sotto 2 (nitido di base), mai sopra 4 (protezione memoria).
-    const SCALE = Math.min(Math.max(TARGET_W / larghezzaBase, 2), 4);
-
+    const pages = [];
     for (let n = 1; n <= pdf.numPages; n++) {
         const page = await pdf.getPage(n);
-        const viewport = page.getViewport({ scale: SCALE });
+
+        // Scala dpr × boost, ridotta se supererebbe il tetto MAX_W.
+        let scale = dpr * RENDER_BOOST;
+        const baseW = page.getViewport({ scale: 1 }).width;
+        if (baseW * scale > MAX_W) scale = MAX_W / baseW;
+
+        const vp = page.getViewport({ scale });
 
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width  = viewport.width;
-        canvas.height = viewport.height;
+        canvas.width  = vp.width;    // risoluzione INTERNA (alta)
+        canvas.height = vp.height;
+        canvas.style.width   = '100%';   // dimensione VISIVA (scalata dal box pagina)
+        canvas.style.height  = '100%';
+        canvas.style.display = 'block';
 
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        images.push(canvas.toDataURL('image/png'));
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+        const pageEl = document.createElement('div');
+        pageEl.className = 'page';
+        pageEl.style.width  = '100%';
+        pageEl.style.height = '100%';
+        pageEl.appendChild(canvas);
+
+        pages.push(pageEl);
     }
-    return images;
+    return pages;
 }
 
-function initFlip(images) {
+function initFlip(pages) {
     const isMobile = window.innerWidth < 768;
-
-    // Dimensioni di base: StPageFlip scala mantenendo le proporzioni.
-    // Usiamo le proporzioni A4 verticali come riferimento.
     const W = isMobile ? 380 : 500;
     const H = Math.round(W * 1.414);
+
+    // Contenitore visibile PRIMA di init, così 'stretch' misura la larghezza.
+    loading.style.display = 'none';
+    elBook.style.display  = 'block';
+
+    // Le pagine devono stare nel DOM come figli del contenitore.
+    pages.forEach(p => elBook.appendChild(p));
 
     const pageFlip = new St.PageFlip(elBook, {
         width: W,
@@ -121,17 +169,15 @@ function initFlip(images) {
         maxShadowOpacity: 0.5,
         showCover: true,
         mobileScrollSupport: true,
-        // singola pagina su mobile, doppia su desktop
         usePortrait: isMobile,
     });
 
-    pageFlip.loadFromImages(images);
+    // Modalità HTML: StPageFlip usa i nostri <div class="page"> con i canvas.
+    pageFlip.loadFromHTML(pages);
 
-    elBook.style.display   = 'block';
     controls.style.display = 'flex';
-    loading.style.display  = 'none';
 
-    const total = images.length;
+    const total = pages.length;
     function refreshLabel() {
         lblPage.textContent = (pageFlip.getCurrentPageIndex() + 1) + ' / ' + total;
     }
@@ -141,26 +187,24 @@ function initFlip(images) {
     btnNext.addEventListener('click', () => pageFlip.flipNext());
     pageFlip.on('flip', refreshLabel);
 
-    // Zoom
     btnZoomIn.addEventListener('click', zoomIn);
     btnZoomOut.addEventListener('click', zoomOut);
     btnZoomReset.addEventListener('click', zoomReset);
-    applyZoom(); // stato iniziale: 100%, bottone "−" disabilitato
+    applyZoom();
 }
 
 (async function () {
     try {
         if (typeof St === 'undefined' || !St.PageFlip) {
-            // StPageFlip non caricata → fallback.
             fallbackIframe();
             return;
         }
-        const images = await renderPages();
-        if (!images.length) {
+        const pages = await renderPages();
+        if (!pages.length) {
             fallbackIframe();
             return;
         }
-        initFlip(images);
+        initFlip(pages);
     } catch (e) {
         console.error('Flipbook non disponibile:', e);
         fallbackIframe();
