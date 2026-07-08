@@ -1,0 +1,64 @@
+services:
+  php:
+    build: .
+    container_name: cat4u_php
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html/cat4u
+    environment:
+      DB_HOST: db
+      DB_NAME: cat4u
+      DB_USER: cat4u
+      DB_PASSWORD: cat4u_secret
+      APP_URL: http://localhost:8080/cat4u/
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:11
+    container_name: cat4u_db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpwd
+      MARIADB_DATABASE: cat4u
+      MARIADB_USER: cat4u
+      MARIADB_PASSWORD: cat4u_secret
+    volumes:
+      - db_data:/var/lib/mysql
+      # - ./docker/mariadb/init:/docker-entrypoint-initdb.d   # opzionale: dump .sql caricato al primo avvio (volume vuoto)
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: cat4u_pma
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: 64M
+    depends_on:
+      - db
+
+  # --- Opzionale: watcher Tailwind nel container ---
+  # Sconsigliato su Windows (watch su bind mount inaffidabile).
+  # Tienilo commentato e continua a usare `npm run watch:css` sull'host.
+  # node:
+  #   image: node:20
+  #   container_name: cat4u_node
+  #   working_dir: /app
+  #   volumes:
+  #     - .:/app
+  #     - node_modules:/app/node_modules
+  #   command: sh -c "npm install && npm run watch:css"
+
+volumes:
+  db_data:
+  # node_modules:
