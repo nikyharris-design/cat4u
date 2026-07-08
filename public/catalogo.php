@@ -76,8 +76,9 @@ if (str_contains($ua, 'mobile') || str_contains($ua, 'android') || str_contains(
 }
 
 // IP salvato come HASH (non in chiaro): basta per contare i visitatori unici
-// senza conservare un dato personale.
-$ip_hash = hash('sha256', $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+// senza conservare un dato personale. Passa da client_ip() così online (dietro
+// proxy) si hasha l'IP reale del visitatore e non quello del proxy.
+$ip_hash = hash('sha256', client_ip());
 
 // Registriamo la visita: una riga per ogni apertura del catalogo.
 $stmt = $pdo->prepare("INSERT INTO catalogo_analytics (catalogo_id, device_type, ip_hash) VALUES (?, ?, ?)");

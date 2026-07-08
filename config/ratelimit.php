@@ -74,12 +74,43 @@ function rate_clear(string $action, string $key): void {
 }
 
 /**
- * Restituisce l'IP del client. Helper minimo per avere una "chiave" coerente.
+ * Restituisce l'IP reale del client, tenendo conto di un eventuale reverse
+ * proxy in produzione (Railway/Render/Fly).
  *
- * ATTENZIONE: se l'app girasse dietro un proxy/load balancer, l'IP reale
- * sarebbe in X-Forwarded-For e andrebbe gestito con cautela (quell'header è
- * falsificabile se non filtrato dal proxy). In hosting diretto, REMOTE_ADDR va bene.
+ * Sicurezza: gli header inoltrati sono considerati SOLO se TRUST_PROXY=true.
+ * In locale/hosting diretto (default) si usa REMOTE_ADDR, non falsificabile.
+ * Da X-Forwarded-For si legge contando da destra (TRUSTED_PROXY_DEPTH): il
+ * valore eventualmente iniettato da un client resta a sinistra e viene ignorato.
  */
 function client_ip(): string {
-    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+    // Fuori produzione (o hosting diretto): REMOTE_ADDR e basta.
+    if (($_ENV['TRUST_PROXY'] ?? 'false') !== 'true') {
+        return $remote;
+    }
+
+    // 1) Header a valore singolo fornito dal proxy (es. Fly-Client-IP), se impostato.
+    $singleHeader = trim($_ENV['REAL_IP_HEADER'] ?? '');
+    if ($singleHeader !== '') {
+        $key = 'HTTP_' . strtoupper(str_replace('-', '_', $singleHeader));
+        $val = trim($_SERVER[$key] ?? '');
+        if ($val !== '' && filter_var($val, FILTER_VALIDATE_IP)) {
+            return $val;
+        }
+    }
+
+    // 2) X-Forwarded-For: catena "client, proxy1, proxy2, ...".
+    $xff = trim($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '');
+    if ($xff !== '') {
+        $parts = array_map('trim', explode(',', $xff));
+        $depth = max(1, (int)($_ENV['TRUSTED_PROXY_DEPTH'] ?? 1));
+        $idx   = count($parts) - $depth; // IP aggiunto dal proxy fidato più vicino
+        if ($idx >= 0 && isset($parts[$idx]) && filter_var($parts[$idx], FILTER_VALIDATE_IP)) {
+            return $parts[$idx];
+        }
+    }
+
+    // Fallback prudente.
+    return $remote;
 }
