@@ -12,10 +12,35 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
+   <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestione Utenti — Cat4U</title>
     <link rel="stylesheet" href="<?= BASE_URL ?>assets/css/style.css">
     <script src="<?= BASE_URL ?>assets/js/dashboard.js"></script>
+    <style>
+        /* Telefono: la tabella diventa schede impilate (etichette da data-label). */
+        @media (max-width:767px){
+            .utenti-table{ display:block; padding:.5rem; }
+            .utenti-table thead{ display:none; }
+            .utenti-table tbody{ display:block; }
+            .utenti-table tr{
+                display:block; background:var(--surface);
+                border:1px solid var(--border); border-radius:.6rem;
+                margin-bottom:.5rem; overflow:hidden;
+            }
+            .utenti-table td{
+                display:flex; align-items:center; justify-content:space-between;
+                gap:1rem; padding:.55rem .8rem; text-align:right;
+            }
+            .utenti-table td + td{ border-top:1px solid var(--border); }
+            .utenti-table td::before{
+                content:attr(data-label);
+                font-weight:600; font-size:.7rem; letter-spacing:.03em;
+                text-transform:uppercase; color:var(--muted);
+                text-align:left; white-space:nowrap;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <?php require __DIR__ . '/../partials/header.php'; ?>
@@ -104,24 +129,27 @@
         </div>
 
         <!-- TABELLA UTENTI -->
+        <!-- TABELLA UTENTI -->
         <div class="bg-white rounded-xl shadow overflow-hidden">
-            <table class="w-full text-sm">
+            <table class="utenti-table w-full text-sm">
                 <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                     <tr>
                         <th class="px-4 py-3 text-left">Nome</th>
                         <th class="px-4 py-3 text-left">Email</th>
                         <th class="px-4 py-3 text-left">Ruolo</th>
+                        <?php if ($is_superadmin): ?>
                         <th class="px-4 py-3 text-left">Azienda</th>
                         <th class="px-4 py-3 text-left">Pwd cambiata</th>
                         <th class="px-4 py-3 text-left">Azioni</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     <?php foreach ($utenti as $u): ?>
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 font-medium text-gray-800"><?= htmlspecialchars($u['name']) ?></td>
-                        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($u['email']) ?></td>
-                        <td class="px-4 py-3">
+                        <td data-label="Nome" class="px-4 py-3 font-medium text-gray-800"><?= htmlspecialchars($u['name']) ?></td>
+                        <td data-label="Email" class="px-4 py-3 text-gray-600"><?= htmlspecialchars($u['email']) ?></td>
+                        <td data-label="Ruolo" class="px-4 py-3">
                             <?php
                             // match() (PHP 8) sceglie il colore del badge in base al ruolo.
                             $badge = match($u['role']) {
@@ -134,17 +162,16 @@
                                 <?= htmlspecialchars($u['role']) ?>
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-gray-600"><?= htmlspecialchars($u['nome_azienda'] ?? '—') ?></td>
-                        <td class="px-4 py-3">
-                            <!-- Mostra se l'utente ha già cambiato la password iniziale. -->
+                        <?php if ($is_superadmin): ?>
+                        <td data-label="Azienda" class="px-4 py-3 text-gray-600"><?= htmlspecialchars($u['nome_azienda'] ?? '—') ?></td>
+                        <td data-label="Pwd cambiata" class="px-4 py-3">
                             <?php if ($u['must_change_password']): ?>
                                 <span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-semibold">No</span>
                             <?php else: ?>
                                 <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-semibold">Sì</span>
                             <?php endif; ?>
                         </td>
-                        <td class="px-4 py-3">
-                            <!-- Non si mostra il pulsante "Elimina" sulla propria riga. -->
+                        <td data-label="Azioni" class="px-4 py-3">
                             <?php if ($u['id'] !== (int)$_SESSION['user_id']): ?>
                             <form method="POST" data-confirm="Eliminare questo utente?">
                                 <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
@@ -159,6 +186,7 @@
                                 <span class="text-gray-400 text-xs">Tu</span>
                             <?php endif; ?>
                         </td>
+                        <?php endif; ?>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

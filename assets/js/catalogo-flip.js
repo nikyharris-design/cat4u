@@ -272,11 +272,9 @@ function initScroll(pages) {
             fallbackIframe();
             return;
         }
-        if (window.innerWidth < 768) {
-            initScroll(pages);
-        } else {
-            initFlip(pages);
-        }
+     // Flipbook con effetto sfoglio su TUTTI i dispositivi.
+        // Su telefono usePortrait (dentro initFlip) mostra una pagina alla volta.
+        initFlip(pages);
     } catch (e) {
         console.error('Flipbook non disponibile:', e);
         fallbackIframe();

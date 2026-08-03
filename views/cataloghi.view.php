@@ -110,7 +110,7 @@
                             <?php if ($modifica): ?>
                                 <span class="text-gray-400 font-normal">(lascia vuoto per mantenere quello attuale)</span>
                             <?php else: ?>
-                                <span class="text-gray-400 font-normal">(max 20MB)</span>
+                                <span class="text-gray-400 font-normal">(max 100MB)</span>
                             <?php endif; ?>
                         </label>
                         <!-- required solo in creazione; in modifica il PDF è facoltativo. -->

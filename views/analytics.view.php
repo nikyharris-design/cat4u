@@ -87,7 +87,7 @@
                 <!-- Reset: appare solo se almeno un filtro è attivo. -->
                 <?php if ($filtro_azienda || $filtro_genere || $filtro_catalogo): ?>
                 <a href="<?= BASE_URL ?>dashboard/analytics.php"
-                   style="display:inline-flex; align-items:center; align-self:center; height:38px; padding:0 1rem; background:#1f222c; color:#e7e9ef; border:1px solid #2b2f3a; border-radius:0.5rem; font-size:0.875rem; font-weight:500; text-decoration:none; white-space:nowrap;"
+                   style="display:inline-flex; align-items:center; align-self:flex-end; height:38px; padding:0 1rem; background:#1f222c; color:#e7e9ef; border:1px solid #2b2f3a; border-radius:0.5rem; font-size:0.875rem; font-weight:500; text-decoration:none; white-space:nowrap;"
                    data-base-bg="#1f222c" data-hover-bg="#282c38">
                     Reset filtri
                 </a>

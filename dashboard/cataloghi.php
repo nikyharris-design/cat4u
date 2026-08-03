@@ -44,7 +44,7 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST'
     && empty($_POST) && empty($_FILES)
     && (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {
-    $error = "File troppo grande: l'upload supera il limite del server. Il PDF non può superare 20MB.";
+    $error = "File troppo grande: l'upload supera il limite del server. Il PDF non può superare 100MB.";
 }
 
 // --------------------------------------------------------------------------

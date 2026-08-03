@@ -318,20 +318,20 @@ class CatalogoService
      * @param array<string,mixed> $file una voce di $_FILES (es. $_FILES['pdf'])
      * @return string '' se valido, altrimenti il messaggio d'errore
      */
-    private function validaPdf(array $file, int $maxBytes = 20 * 1024 * 1024): string
+   private function validaPdf(array $file, int $maxBytes = 100 * 1024 * 1024): string
     {
         $err = $file['error'] ?? UPLOAD_ERR_NO_FILE;
         if ($err !== UPLOAD_ERR_OK) {
             return match ($err) {
                 UPLOAD_ERR_INI_SIZE,
-                UPLOAD_ERR_FORM_SIZE => "Il PDF è troppo grande (max 20MB).",
+                UPLOAD_ERR_FORM_SIZE => "Il PDF è troppo grande (max 100MB).",
                 UPLOAD_ERR_PARTIAL   => "Il caricamento si è interrotto. Riprova.",
                 UPLOAD_ERR_NO_FILE   => "Seleziona un file PDF.",
                 default              => "Errore nel caricamento del file.",
             };
         }
         if ($file['size'] <= 0 || $file['size'] > $maxBytes) {
-            return "Il PDF non può superare 20MB.";
+            return "Il PDF non può superare 100MB.";
         }
         if (!is_uploaded_file($file['tmp_name'])) {
             return "File non valido.";

@@ -40,6 +40,10 @@
         #flip-loading .load-progress{ font-size:.8rem; color:var(--muted); min-height:1rem; }
         @keyframes flipSpin{ to{ transform:rotate(360deg); } }
         @media (prefers-reduced-motion:reduce){ #flip-loading .spinner{ animation:none; } }
+        /* Telefono: cornice quasi a filo, così la pagina usa la larghezza e resta centrata */
+        @media (max-width:767px){
+            #flip-viewport{ padding:.5rem !important; }
+        }
     </style>
     
 </head>
