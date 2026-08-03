@@ -87,11 +87,13 @@ if ($is_https) {
 // --------------------------------------------------------------------------
 // FINGERPRINT DELLA SESSIONE (anti session hijacking)
 // --------------------------------------------------------------------------
-$ip_address = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-// Solo i primi 3 ottetti dell'IP: compromesso per non sloggare gli utenti su
-// rete mobile (che cambiano spesso l'ultima parte dell'IP).
-$ip_partial = substr($ip_address, 0, strrpos($ip_address, '.'));
-$user_fingerprint = hash('sha256', ($_SERVER['HTTP_USER_AGENT'] ?? 'unknown') . $ip_partial);
+// Fingerprint basato SOLO sullo user-agent. L'IP è stato tolto di proposito:
+// cambia troppo spesso durante una sessione legittima (rete mobile e, soprattutto,
+// reti dual-stack dove lo stesso dispositivo alterna IPv4 e IPv6). Con l'IP nel
+// fingerprint, tornare da una pagina pubblica servita con un IP diverso bastava a
+// distruggere la sessione. La protezione forte contro il riuso di un cookie rubato
+// resta il cookie stesso: HttpOnly + Secure + SameSite=Strict (impostati sopra).
+$user_fingerprint = hash('sha256', $_SERVER['HTTP_USER_AGENT'] ?? 'unknown');
 
 if (!isset($_SESSION['fingerprint'])) {
     $_SESSION['fingerprint'] = $user_fingerprint;

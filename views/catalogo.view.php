@@ -23,6 +23,24 @@
 
     <!-- Rifiniture del lettore. Inline <style> è permesso dalla CSP
          (style-src 'unsafe-inline') e non richiede ricompilare Tailwind. -->
+         <style>
+        #flip-loading{
+            display:flex; flex-direction:column;
+            align-items:center; justify-content:center;
+            gap:.9rem; min-height:320px; color:var(--muted);
+        }
+        #flip-loading .spinner{
+            width:44px; height:44px;
+            border:4px solid var(--border);
+            border-top-color:#4f46e5;          /* stesso indaco dei bottoni primari */
+            border-radius:50%;
+            animation:flipSpin .8s linear infinite;
+        }
+        #flip-loading .load-title{ font-size:.95rem; font-weight:500; color:var(--text); }
+        #flip-loading .load-progress{ font-size:.8rem; color:var(--muted); min-height:1rem; }
+        @keyframes flipSpin{ to{ transform:rotate(360deg); } }
+        @media (prefers-reduced-motion:reduce){ #flip-loading .spinner{ animation:none; } }
+    </style>
     
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -44,7 +62,7 @@
         </div>
     </header>
 
-    <main class="max-w-5xl mx-auto py-6 px-4">
+   <main class="mx-auto py-6 px-4" style="max-width:80rem;">
         <h1 class="text-xl font-bold text-gray-800 mb-1"><?= htmlspecialchars($catalogo['titolo']) ?></h1>
         <?php if ($catalogo['data_scadenza']): ?>
             <p class="text-xs text-gray-400 mb-4">Valido fino al <?= date('d/m/Y', strtotime($catalogo['data_scadenza'])) ?></p>
@@ -55,15 +73,17 @@
         <!-- Contenitore del flipbook. Popolato da JS. Resta vuoto se JS è
              disattivato: in quel caso si mostra il <noscript> con l'iframe. -->
         <div id="flip-wrap" class="select-none">
-            <div id="flip-loading" class="text-center text-gray-400 text-sm py-12">
-                Caricamento catalogo…
+            <div id="flip-loading" role="status" aria-live="polite">
+                <div class="spinner" aria-hidden="true"></div>
+                <div class="load-title">Caricamento catalogo…</div>
+                <div class="load-progress" id="flip-progress"></div>
             </div>
 
           <!-- Viewport scrollabile + "piano" di lettura: un fondo appena più
                  scuro delle pagine bianche, con bordo e ombra interna, così i
                  margini del flipbook si distinguono chiaramente. -->
             <div id="flip-viewport"
-                 style="overflow:auto; border-radius:0.75rem; padding:1.5rem;">
+                 style="overflow:auto; border-radius:0.75rem; padding:2.5rem;">
                 <div id="flipbook" style="display:none;"></div>
             </div>
 

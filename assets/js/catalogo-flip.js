@@ -14,6 +14,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
 
 const wrap     = document.getElementById('flip-wrap');
 const loading  = document.getElementById('flip-loading');
+const progress = document.getElementById('flip-progress');
 const elBook   = document.getElementById('flipbook');
 const controls = document.getElementById('flip-controls');
 const btnPrev  = document.getElementById('flip-prev');
@@ -164,7 +165,8 @@ async function renderPages() {
         pageEl.style.height = '100%';
         pageEl.appendChild(canvas);
 
-        pages.push(pageEl);
+       pages.push(pageEl);
+        if (progress) progress.textContent = 'Pagina ' + n + ' di ' + pdf.numPages;
     }
     return pages;
 }
